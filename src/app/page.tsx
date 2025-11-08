@@ -1,3 +1,5 @@
+import Link from "@/components/Link";
+import Button from "@mui/material/Button";
 import Image from "next/image";
 
 export default function Home() {
@@ -59,6 +61,9 @@ export default function Home() {
             Documentation
           </a>
         </div>
+        <Button component={Link} href="/about" variant="contained">
+    Go to About Page
+  </Button>
       </main>
     </div>
   );

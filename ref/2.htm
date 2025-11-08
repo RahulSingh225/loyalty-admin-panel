@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sturlite Admin Panel - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        /* Include the same base styles from the previous pages */
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Light theme styles */
+        .light-theme {
+            background: linear-gradient(135deg, #f8f9f7 0%, #eef2ef 100%);
+        }
+        
+        .light-theme .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        .light-theme .input-field {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+        
+        .light-theme .input-field:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        
+        .light-theme .btn-primary {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            color: #ffffff;
+        }
+        
+        .light-theme .btn-primary:hover {
+            background: linear-gradient(to right, #1d4ed8, #1e40af);
+        }
+        
+        .light-theme .text-primary {
+            color: #1f2937;
+        }
+        
+        .light-theme .text-secondary {
+            color: #6b7280;
+        }
+        
+        .light-theme .text-tertiary {
+            color: #9ca3af;
+        }
+        
+        .light-theme .text-accent {
+            color: #2563eb;
+        }
+        
+        .light-theme .text-accent:hover {
+            color: #1d4ed8;
+        }
+        
+        /* Dark theme styles */
+        .dark-theme {
+            background-color: #000000;
+        }
+        
+        .dark-theme .glass-effect {
+            background: rgba(28, 28, 30, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 56, 58, 0.3);
+        }
+        
+        .dark-theme .input-field {
+            background-color: #1c1c1e;
+            border: 1px solid #38383a;
+            color: #ffffff;
+        }
+        
+        .dark-theme .input-field:focus {
+            border-color: #007aff;
+            outline: none;
+        }
+        
+        .dark-theme .btn-primary {
+            background-color: #007aff;
+            color: #ffffff;
+        }
+        
+        .dark-theme .btn-primary:hover {
+            background-color: #0051d5;
+        }
+        
+        .dark-theme .text-primary {
+            color: #ffffff;
+        }
+        
+        .dark-theme .text-secondary {
+            color: #f2f2f7;
+        }
+        
+        .dark-theme .text-tertiary {
+            color: #8e8e93;
+        }
+        
+        .dark-theme .text-accent {
+            color: #007aff;
+        }
+        
+        .dark-theme .text-accent:hover {
+            color: #0051d5;
+        }
+
+        /* Card elevation / shadow system for cleaner separation */
+        :root {
+            --card-bg: #ffffff;
+            --card-border: rgba(16,24,40,0.04);
+            --card-shadow: 0 6px 18px rgba(16,24,40,0.06);
+            --card-shadow-hover: 0 10px 30px rgba(16,24,40,0.08);
+        }
+
+        .widget-card,
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: var(--card-shadow);
+            transition: box-shadow 200ms ease, transform 160ms ease;
+            border-radius: 12px;
+        }
+
+        .widget-card:hover,
+        .stat-card:hover {
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-4px);
+        }
+
+        /* Slightly subtler appearance in dark theme */
+        .dark-theme .widget-card,
+        .dark-theme .stat-card {
+            background: #141416 !important;
+            border-color: rgba(255,255,255,0.03) !important;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.6) !important;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .dark-theme .sidebar {
+            background-color: #1c1c1e;
+            border-right: 1px solid #38383a;
+        }
+        
+        .top-bar {
+            background-color: #ffffff;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        
+        .dark-theme .top-bar {
+            background-color: #1c1c1e;
+            border-bottom: 1px solid #38383a;
+        }
+        
+        .sidebar-item {
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .sidebar-item.active {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+        }
+        
+        .sidebar-item.active i {
+            color: #3b82f6;
+        }
+        
+        .dark-theme .sidebar-item.active {
+            background-color: #2c2c2e;
+            color: #007aff;
+        }
+        
+        .dark-theme .sidebar-item.active i {
+            color: #007aff;
+        }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .notification.show {
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background-color: #10b981;
+        }
+        
+        .notification.error {
+            background-color: #ef4444;
+        }
+        
+        /* Badge styles */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .badge-primary {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .dark-theme .badge-primary {
+            background-color: rgba(0, 122, 255, 0.2);
+            color: #007aff;
+        }
+        
+        .badge-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .dark-theme .badge-success {
+            background-color: rgba(52, 199, 89, 0.2);
+            color: #34c759;
+        }
+        
+        .badge-warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .dark-theme .badge-warning {
+            background-color: rgba(255, 149, 0, 0.2);
+            color: #ff9500;
+        }
+        
+        .badge-danger {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .dark-theme .badge-danger {
+            background-color: rgba(255, 59, 48, 0.2);
+            color: #ff3b30;
+        }
+        
+        /* Progress bar styles */
+        .progress-bar {
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .dark-theme .progress-bar {
+            background-color: #38383a;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #3b82f6;
+            border-radius: 4px;
+        }
+        
+        .dark-theme .progress-fill {
+            background-color: #007aff;
+        }
+
+        /* Date filter styles */
+        .date-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .date-filter input {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            font-size: 0.75rem;
+        }
+
+        .dark-theme .date-filter input {
+            background-color: #38383a;
+            border-color: #6366f1;
+            color: #ffffff;
+        }
+
+        .date-filter button {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .date-filter button:hover {
+            background-color: #2563eb;
+        }
+
+        .dark-theme .date-filter button {
+            background-color: #007aff;
+        }
+
+        .dark-theme .date-filter button:hover {
+            background-color: #0051d5;
+        }
+
+        /* Status indicator styles */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-active {
+            background-color: #10b981;
+        }
+
+        .status-blocked {
+            background-color: #ef4444;
+        }
+
+        .status-pending {
+            background-color: #f59e0b;
+        }
+
+        .status-approved {
+            background-color: #3b82f6;
+        }
+        
+        /* Responsive adjustments for mobile / small screens */
+        @media (max-width: 992px) {
+            /* Stack main layout vertically */
+            .flex.h-screen {
+                display: block;
+                height: auto;
+            }
+
+            .sidebar.w-64 {
+                width: 100% !important;
+                position: relative !important;
+                height: auto !important;
+                border-right: none !important;
+            }
+
+            .sidebar { width: 100% !important; }
+
+            .sidebar .p-6 { padding: 12px !important; }
+
+            .flex-1.overflow-y-auto {
+                width: 100% !important;
+                padding: 0 !important;
+            }
+
+            .top-bar .px-6.py-4 {
+                padding: 10px !important;
+            }
+
+            .widget-card, .stat-card, .widget-card .p-6 {
+                padding: 12px !important;
+                margin: 0 8px 12px 8px;
+            }
+
+            /* Make tables horizontally scrollable */
+            .overflow-x-auto, table { width: 100%; overflow-x: auto; display: block; }
+
+            .min-w-full { min-width: 640px; }
+        }
+
+        @media (max-width: 640px) {
+            /* Mobile specific tweaks */
+            .grid.grid-cols-1.lg\:grid-cols-2 { grid-template-columns: 1fr !important; }
+
+            /* Transform sidebar into a compact icon-only bottom bar */
+            .sidebar {
+                position: fixed !important;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                top: auto !important;
+                width: 100% !important;
+                height: 56px;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                padding: 0 !important;
+                background: rgba(28,28,30,0.98);
+                border-top: 1px solid rgba(56,56,58,0.6);
+                z-index: 70;
+            }
+
+            /* Keep the logo visible in the compact bar */
+            .sidebar .p-6, .sidebar .p-4 { display: none; }
+            .sidebar .sidebar-logo { display: block; height: 32px; margin: 0 12px; }
+
+            /* If the logo is inside a .p-6 wrapper, make sure it shows in compact layout */
+            .sidebar > .p-6 { display: flex !important; align-items: center; justify-content: center; }
+
+            .sidebar nav { display: flex; gap: 6px; align-items: center; }
+
+            .sidebar .sidebar-item {
+                width: 56px;
+                height: 56px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                margin: 0 4px;
+                font-size: 0; /* hide text label */
+            }
+
+            .sidebar .sidebar-item i { font-size: 18px; }
+
+            .sidebar .sidebar-item.active { background: rgba(255,255,255,0.04); border-radius: 8px; color: #fff; }
+
+            /* Ensure top bar remains compact */
+            .top-bar .px-6.py-4 { display: flex; flex-direction: row; align-items: center; justify-content: space-between; }
+
+            .w-full.max-w-md.mx-auto.mt-20 { margin-top: 12px !important; padding: 0 12px; }
+
+            .stat-card { padding: 10px !important; }
+
+            .widget-card .h-64 { height: 300px !important; }
+
+            .text-2xl { font-size: 1.25rem !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen light-theme">
+    <!-- Notification -->
+    <div id="notification" class="notification"></div>
+    
+    <!-- Dashboard Page -->
+    <div id="dashboard-page" class="page active">
+        <div class="flex h-screen">
+            <!-- Sidebar -->
+            <div class="sidebar w-64 flex flex-col">
+                <div class="p-6 border-b border-custom">
+                    <img src="https://ik.imagekit.io/ewxcertfq/Sturlite%20Logo%20Dark.png?updatedAt=1759736719970" alt="Sturlite Logo" class="h-10 sidebar-logo">
+                </div>
+                <div class="flex-1 overflow-y-auto py-4">
+                    <nav class="px-2 space-y-1">
+                        <a href="#" data-page="dashboard" class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-lg">
+                            <i class="fas fa-tachometer-alt mr-3"></i>
+                            Dashboard
+                        </a>
+                        
+                        <!-- Masters & Configuration Section -->
+                        <a href="#" data-page="masters-config" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-cogs mr-3"></i>
+                            Masters & Config
+                        </a>
+                        
+                        <!-- Schemes & Campaigns Section -->
+                        <a href="#" data-page="schemes-campaigns" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-bullhorn mr-3"></i>
+                            Schemes & Campaigns
+                        </a>
+                        
+                        <!-- Advanced QR Management Section -->
+                        <a href="#" data-page="qr-management" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-qrcode mr-3"></i>
+                            QR Management
+                        </a>
+                        
+                        <!-- Communication Console Section -->
+                        <a href="#" data-page="communication" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-broadcast-tower mr-3"></i>
+                            Communication
+                        </a>
+                        
+                        <!-- Finance & Compliance Section -->
+                        <a href="#" data-page="finance-compliance" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-coins mr-3"></i>
+                            Finance & Compliance
+                        </a>
+                        
+                        <!-- Fraud Detection Section -->
+                        <a href="#" data-page="fraud-detection" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-shield-alt mr-3"></i>
+                            Fraud Detection
+                        </a>
+                        
+                        <!-- MIS & Analytics Section -->
+                        <a href="#" data-page="mis-analytics" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-chart-line mr-3"></i>
+                            MIS & Analytics
+                        </a>
+                        
+                        <!-- Role Management Section -->
+                        <a href="#" data-page="role-management" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-user-shield mr-3"></i>
+                            Role Management
+                        </a>
+                        
+                        <!-- Integration Monitoring Section -->
+                        <a href="#" data-page="integrations" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-plug mr-3"></i>
+                            Integrations
+                        </a>
+                        
+                        <!-- Existing Sections -->
+                        <a href="#" data-page="process" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-cogs mr-3"></i>
+                            Process
+                        </a>
+                        <a href="#" data-page="tickets" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-ticket-alt mr-3"></i>
+                            Tickets
+                        </a>
+                        <a href="#" data-page="members" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-users mr-3"></i>
+                            Members
+                        </a>
+                        <a href="#" data-page="configuration" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-lg text-secondary">
+                            <i class="fas fa-sliders-h mr-3"></i>
+                            Configuration
+                        </a>
+                    </nav>
+                </div>
+                <div class="p-4 border-t border-custom">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-blue-100 dark:bg-opacity-20 flex items-center justify-center">
+                                <span class="text-blue-800 dark:text-blue-400 font-medium">A</span>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-primary">Admin User</p>
+                            <p class="text-xs text-tertiary">admin@sturlite.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 overflow-y-auto">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="px-6 py-4 flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-primary">Dashboard</h1>
+                            <p class="text-sm text-3">Welcome back! Here's your loyalty program overview</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition" id="refresh-btn">
+                                <i class="fas fa-sync-alt mr-2"></i> Refresh
+                            </button>
+                            <div class="relative">
+                                <button class="p-2 text-tertiary relative">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500"></span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <button class="p-2 text-tertiary">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
+                            <button id="logout-btn" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
+                                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Content -->
+                    <div class="p-6">
+                        <!-- Key Metrics -->
+                        <div class="grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-tertiary">Total Members</h4>
+                                    <i class="fas fa-users text-blue-500"></i>
+                                </div>
+                                <p class="text-2xl font-bold text-primary mb-1">12,847</p>
+                                <div class="flex items-center text-sm">
+                                    <span class="text-green-600">+12.5%</span>
+                                    <span class="text-tertiary ml-2">from last month</span>
+                                </div>
+                            </div>
+                            
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-3">Active Members</h4>
+                                    <i class="fas fa-user-check text-green-500"></i>
+                                </div>
+                                <p class="text-2xl font-bold text-primary mb-1">8,432</p>
+                                <div class="flex items-center text-sm">
+                                    <span class="text-green-600">+8.2%</span>
+                                    <span class="text-3 ml-2">from last month</span>
+                                </div>
+                            </div>
+                            
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-3">Total Points Issued</h4>
+                                    <i class="fas fa-coins text-yellow-500"></i>
+                                </div>
+                                <p class="text-2xl font-bold text-primary mb-1">2.4M</p>
+                                <div class="flex items-center text-sm">
+                                    <span class="text-green-600">+18.7%</span>
+                                    <span class="text-3 ml-2">from last month</span>
+                                </div>
+                            </div>
+                            
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-3">Points Redeemed</h4>
+                                    <i class="fas fa-gift text-purple-500"></i>
+                                </div>
+                                <p class="text-2xl font-bold text-primary mb-1">1.8M</p>
+                                <div class="flex items-center text-sm">
+                                    <span class="text-orange-600">+5.3%</span>
+                                    <span class="text-3 ml-2">from last month</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New Metrics Row -->
+                        <div class="grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                            <!-- Total Scans with Date Filter -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-tertiary">Total Scans</h4>
+                                    <i class="fas fa-qrcode text-indigo-500"></i>
+                                </div>
+                                <p class="text-2xl font-bold text-primary mb-1" id="total-scans">24,832</p>
+                                <div class="flex items-center text-sm mb-3">
+                                    <span class="text-green-600">+15.2%</span>
+                                    <span class="text-tertiary ml-2">from last period</span>
+                                </div>
+                                <div class="date-filter">
+                                    <input type="date" id="scan-date-from" class="input-field">
+                                    <span class="text-tertiary">to</span>
+                                    <input type="date" id="scan-date-to" class="input-field">
+                                    <button id="apply-date-filter">Apply</button>
+                                </div>
+                            </div>
+                            
+                            <!-- KYC Status -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-tertiary">KYC Status</h4>
+                                    <i class="fas fa-user-check text-teal-500"></i>
+                                </div>
+                                <div class="flex justify-between items-center mb-3">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-primary" id="approved-kyc">9,523</p>
+                                        <p class="text-xs text-3">Approved</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-warning" id="pending-kyc">3,324</p>
+                                        <p class="text-xs text-3">Pending</p>
+                                    </div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 74%"></div>
+                                </div>
+                                <p class="text-xs text-3 mt-2">74% of members have completed KYC</p>
+                            </div>
+                            
+                            <!-- User Status -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-medium text-tertiary">User Status</h4>
+                                    <i class="fas fa-user-shield text-amber-500"></i>
+                                </div>
+                                <div class="flex justify-between items-center mb-3">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-primary" id="active-users">10,428</p>
+                                        <p class="text-xs text-3">Active</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-danger" id="blocked-users">2,419</p>
+                                        <p class="text-xs text-3">Blocked</p>
+                                    </div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 81%"></div>
+                                </div>
+                                <p class="text-xs text-3 mt-2">81% of users are active</p>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row -->
+                        <div class="grid grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Member Growth Chart -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">Member Growth</h3>
+                                    <select class="text-sm border border-gray-300 rounded px-2 py-1">
+                                        <option>Last 7 days</option>
+                                        <option>Last 30 days</option>
+                                        <option>Last 3 months</option>
+                                        <option>Last year</option>
+                                    </select>
+                                </div>
+                                <div class="h-64">
+                                    <canvas id="memberGrowthChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Points Transaction Chart -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">Points Transactions</h3>
+                                    <select class="text-sm border border-gray-300 rounded px-2 py-1">
+                                        <option>Last 7 days</option>
+                                        <option>Last 30 days</option>
+                                        <option>Last 3 months</option>
+                                        <option>Last year</option>
+                                    </select>
+                                </div>
+                                <div class="h-64">
+                                    <canvas id="pointsTransactionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions & Recent Activity -->
+                        <div class="grid grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                            <!-- Quick Actions -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <h3 class="text-lg font-semibold text-primary mb-4">Quick Actions</h3>
+                                <div class="space-y-3">
+                                    <button class="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center justify-between group">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-user-plus text-blue-600 mr-3"></i>
+                                            <span class="text-sm font-medium">Add New Member</span>
+                                        </div>
+                                        <i class="fas fa-arrow-right text-blue-600 opacity-0 group-hover:opacity-100 transition"></i>
+                                    </button>
+                                    <button class="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition flex items-center justify-between group">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-qrcode text-green-600 mr-3"></i>
+                                            <span class="text-sm font-medium">Generate QR Code</span>
+                                        </div>
+                                        <i class="fas fa-arrow-right text-green-600 opacity-0 group-hover:opacity-100 transition"></i>
+                                    </button>
+                                    <button class="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition flex items-center justify-between group">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-bullhorn text-purple-600 mr-3"></i>
+                                            <span class="text-sm font-medium">Create Campaign</span>
+                                        </div>
+                                        <i class="fas fa-arrow-right text-purple-600 opacity-0 group-hover:opacity-100 transition"></i>
+                                    </button>
+                                    <button class="w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition flex items-center justify-between group">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-chart-line text-orange-600 mr-3"></i>
+                                            <span class="text-sm font-medium">View Reports</span>
+                                        </div>
+                                        <i class="fas fa-arrow-right text-orange-600 opacity-0 group-hover:opacity-100 transition"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Transactions -->
+                            <div class="widget-card rounded-xl shadow p-6 lg:col-span-2">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">Recent Transactions</h3>
+                                    <button class="text-sm text-blue-600 hover:text-blue-800">View All</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full">
+                                        <thead>
+                                            <tr class="border-b">
+                                                <th class="text-left py-2 text-xs font-medium text-3">Transaction ID</th>
+                                                <th class="text-left py-2 text-xs font-medium text-3">Member</th>
+                                                <th class="text-left py-2 text-xs font-medium text-3">Type</th>
+                                                <th class="text-left py-2 text-xs font-medium text-3">Points</th>
+                                                <th class="text-left py-2 text-xs font-medium text-3">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-b">
+                                                <td class="py-2 text-sm">#TXN-2847</td>
+                                                <td class="py-2 text-sm">John Doe</td>
+                                                <td class="py-2 text-sm">
+                                                    <span class="badge badge-success">Earned</span>
+                                                </td>
+                                                <td class="py-2 text-sm text-green-600">+250</td>
+                                                <td class="py-2 text-sm text-3">2 mins ago</td>
+                                            </tr>
+                                            <tr class="border-b">
+                                                <td class="py-2 text-sm">#TXN-2846</td>
+                                                <td class="py-2 text-sm">Alice Smith</td>
+                                                <td class="py-2 text-sm">
+                                                    <span class="badge badge-warning">Redeemed</span>
+                                                </td>
+                                                <td class="py-2 text-sm text-red-600">-500</td>
+                                                <td class="py-2 text-sm text-3">5 mins ago</td>
+                                            </tr>
+                                            <tr class="border-b">
+                                                <td class="py-2 text-sm">#TXN-2845</td>
+                                                <td class="py-2 text-sm">Robert Johnson</td>
+                                                <td class="py-2 text-sm">
+                                                    <span class="badge badge-success">Earned</span>
+                                                </td>
+                                                <td class="py-2 text-sm text-green-600">+180</td>
+                                                <td class="py-2 text-sm text-3">12 mins ago</td>
+                                            </tr>
+                                            <tr class="border-b">
+                                                <td class="py-2 text-sm">#TXN-2844</td>
+                                                <td class="py-2 text-sm">Emma Wilson</td>
+                                                <td class="py-2 text-sm">
+                                                    <span class="badge badge-success">Earned</span>
+                                                </td>
+                                                <td class="py-2 text-sm text-green-600">+320</td>
+                                                <td class="py-2 text-sm text-3">18 mins ago</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Performers & Pending Approvals -->
+                        <div class="grid grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Top Performers -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <h3 class="text-lg font-semibold text-primary mb-4">Top Performers This Month</h3>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <div class="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
+                                                <span class="text-yellow-800 font-bold">1</span>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium">Michael Chen</p>
+                                                <p class="text-xs text-3">2,450 points</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-semibold text-green-600">+28%</p>
+                                            <p class="text-xs text-3">vs last month</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                                <span class="text-gray-800 font-bold">2</span>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium">Sarah Williams</p>
+                                                <p class="text-xs text-3">2,180 points</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-semibold text-green-600">+15%</p>
+                                            <p class="text-xs text-3">vs last month</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center mr-3">
+                                                <span class="text-orange-800 font-bold">3</span>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium">David Martinez</p>
+                                                <p class="text-xs text-3">1,920 points</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-semibold text-green-600">+32%</p>
+                                            <p class="text-xs text-3">vs last month</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pending Approvals -->
+                            <div class="widget-card rounded-xl shadow p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">Pending Approvals</h3>
+                                    <span class="badge badge-warning">12 items</span>
+                                </div>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                                        <div>
+                                            <p class="text-sm font-medium">Redemption Request</p>
+                                            <p class="text-xs text-3">John Doe - 500 points</p>
+                                        </div>
+                                        <button class="text-xs text-orange-600 hover:text-orange-800">Review</button>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                                        <div>
+                                            <p class="text-sm font-medium">Scan Transaction</p>
+                                            <p class="text-xs text-3">Alice Smith - ₹2,500</p>
+                                        </div>
+                                        <button class="text-xs text-blue-600 hover:text-blue-800">Review</button>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                                        <div>
+                                            <p class="text-sm font-medium">Bulk Points Credit</p>
+                                            <p class="text-xs text-3">45 members - 22,500 points</p>
+                                        </div>
+                                        <button class="text-xs text-purple-600 hover:text-purple-800">Review</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Logout button
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            showNotification('Logging out...', 'success');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 1000);
+        });
+        
+        // Refresh button
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            showNotification('Dashboard refreshed successfully', 'success');
+            // Refresh charts
+            updateCharts();
+            // Refresh metrics
+            updateMetrics();
+        });
+        
+        // Sidebar navigation
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const pageId = this.getAttribute('data-page');
+                if (pageId) {
+                    // In a real application, this would navigate to the respective page
+                    showNotification(`Navigating to ${pageId}...`, 'success');
+                }
+            });
+        });
+        
+        // Quick action buttons
+        document.querySelectorAll('.widget-card button').forEach(button => {
+            if (button.textContent.includes('Add New Member')) {
+                button.addEventListener('click', function() {
+                    showNotification('Opening member registration form...', 'success');
+                });
+            } else if (button.textContent.includes('Generate QR Code')) {
+                button.addEventListener('click', function() {
+                    showNotification('Opening QR generator...', 'success');
+                });
+            } else if (button.textContent.includes('Create Campaign')) {
+                button.addEventListener('click', function() {
+                    showNotification('Opening campaign creator...', 'success');
+                });
+            } else if (button.textContent.includes('View Reports')) {
+                button.addEventListener('click', function() {
+                    showNotification('Opening reports...', 'success');
+                });
+            }
+        });
+        
+        // Date filter functionality
+        document.getElementById('apply-date-filter').addEventListener('click', function() {
+            const dateFrom = document.getElementById('scan-date-from').value;
+            const dateTo = document.getElementById('scan-date-to').value;
+            
+            if (!dateFrom || !dateTo) {
+                showNotification('Please select both start and end dates', 'error');
+                return;
+            }
+            
+            // Simulate API call to get filtered scan data
+            const fromDate = new Date(dateFrom);
+            const toDate = new Date(dateTo);
+            const daysDiff = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
+            
+            // Generate random scan count based on date range
+            const baseScansPerDay = 800;
+            const randomVariation = Math.floor(Math.random() * 200) - 100;
+            const totalScans = Math.max(0, (baseScansPerDay + randomVariation) * daysDiff);
+            
+            // Update the total scans display
+            document.getElementById('total-scans').textContent = totalScans.toLocaleString();
+            
+            // Show notification
+            showNotification(`Updated scan data for ${dateFrom} to ${dateTo}`, 'success');
+        });
+        
+        // Update metrics function
+        function updateMetrics() {
+            // Simulate API calls to update metrics
+            // Total Scans
+            const totalScans = Math.floor(Math.random() * 5000) + 20000;
+            document.getElementById('total-scans').textContent = totalScans.toLocaleString();
+            
+            // KYC Status
+            const approvedKyc = Math.floor(Math.random() * 1000) + 9000;
+            const pendingKyc = Math.floor(Math.random() * 500) + 3000;
+            document.getElementById('approved-kyc').textContent = approvedKyc.toLocaleString();
+            document.getElementById('pending-kyc').textContent = pendingKyc.toLocaleString();
+            
+            // Update KYC progress bar
+            const kycPercentage = Math.round((approvedKyc / (approvedKyc + pendingKyc)) * 100);
+            document.querySelector('.progress-bar .progress-fill').style.width = `${kycPercentage}%`;
+            document.querySelector('.progress-bar + p').textContent = `${kycPercentage}% of members have completed KYC`;
+            
+            // User Status
+            const activeUsers = Math.floor(Math.random() * 1000) + 10000;
+            const blockedUsers = Math.floor(Math.random() * 300) + 2000;
+            document.getElementById('active-users').textContent = activeUsers.toLocaleString();
+            document.getElementById('blocked-users').textContent = blockedUsers.toLocaleString();
+            
+            // Update User Status progress bar
+            const userPercentage = Math.round((activeUsers / (activeUsers + blockedUsers)) * 100);
+            document.querySelectorAll('.progress-bar')[1].querySelector('.progress-fill').style.width = `${userPercentage}%`;
+            document.querySelectorAll('.progress-bar')[1].nextElementSibling.textContent = `${userPercentage}% of users are active`;
+        }
+        
+        // Chart initialization
+        let memberGrowthChart;
+        let pointsTransactionChart;
+        
+        // Helper: wait until a canvas has non-zero size (visible & laid out)
+        function waitForCanvasReady(canvas, maxAttempts = 20, interval = 100) {
+            return new Promise((resolve) => {
+                if (!canvas) return resolve(false);
+                let attempts = 0;
+                const check = () => {
+                    const rect = canvas.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) return resolve(true);
+                    attempts++;
+                    if (attempts >= maxAttempts) return resolve(false);
+                    setTimeout(check, interval);
+                };
+                check();
+            });
+        }
+
+        async function initCharts() {
+            // Member Growth Chart
+            const memberGrowthCtx = document.getElementById('memberGrowthChart');
+            if (memberGrowthCtx) {
+                const ok = await waitForCanvasReady(memberGrowthCtx, 30, 100);
+                if (!ok) { console.warn('memberGrowthChart canvas not ready'); return; }
+                if (!memberGrowthChart) {
+                    memberGrowthChart = new Chart(memberGrowthCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                            datasets: [{
+                                label: 'New Members',
+                                data: [45, 52, 38, 65, 48, 72, 58],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        display: false
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    try { memberGrowthChart.resize(); memberGrowthChart.update(); } catch(e) {}
+                }
+            }
+            
+            // Points Transaction Chart
+            const pointsTransactionCtx = document.getElementById('pointsTransactionChart');
+            if (pointsTransactionCtx) {
+                const ok = await waitForCanvasReady(pointsTransactionCtx, 30, 100);
+                if (!ok) { console.warn('pointsTransactionChart canvas not ready'); return; }
+                if (!pointsTransactionChart) {
+                    pointsTransactionChart = new Chart(pointsTransactionCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                            datasets: [
+                                {
+                                    label: 'Points Earned',
+                                    data: [12500, 15200, 11800, 18500, 14200, 22000, 16800],
+                                    backgroundColor: '#10b981',
+                                    borderRadius: 5
+                                },
+                                {
+                                    label: 'Points Redeemed',
+                                    data: [8500, 9200, 7800, 10500, 8200, 12000, 9800],
+                                    backgroundColor: '#f59e0b',
+                                    borderRadius: 5
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        display: false
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    try { pointsTransactionChart.resize(); pointsTransactionChart.update(); } catch(e) {}
+                }
+            }
+        }
+        
+        // Update charts with new data
+        function updateCharts() {
+            if (memberGrowthChart) {
+                // Generate random data for demo
+                const newData = Array.from({length: 7}, () => Math.floor(Math.random() * 50) + 30);
+                memberGrowthChart.data.datasets[0].data = newData;
+                memberGrowthChart.update();
+            }
+            
+            if (pointsTransactionChart) {
+                // Generate random data for demo
+                const newEarnedData = Array.from({length: 7}, () => Math.floor(Math.random() * 10000) + 10000);
+                const newRedeemedData = Array.from({length: 7}, () => Math.floor(Math.random() * 5000) + 7000);
+                pointsTransactionChart.data.datasets[0].data = newEarnedData;
+                pointsTransactionChart.data.datasets[1].data = newRedeemedData;
+                pointsTransactionChart.update();
+            }
+        }
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize charts
+            initCharts();
+            
+            // Set default date values for the date filter (last 7 days)
+            const today = new Date();
+            const weekAgo = new Date(today);
+            weekAgo.setDate(today.getDate() - 7);
+            
+            document.getElementById('scan-date-to').valueAsDate = today;
+            document.getElementById('scan-date-from').valueAsDate = weekAgo;
+            
+            // Auto-refresh data every 30 seconds
+            setInterval(() => {
+                updateCharts();
+                updateMetrics();
+                showNotification('Dashboard data updated', 'success');
+            }, 30000);
+        });
+    </script>
+</body>
+</html>
