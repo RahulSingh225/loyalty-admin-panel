@@ -1,12 +1,13 @@
 // /app/layout.tsx
+'use client';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import './globals.css';
+import '../../globals.css';
 import { SnackbarProvider } from 'notistack';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
+ const metadata: Metadata = {
   title: 'Platform Bootstrap',
   description: 'Bootstrap platform master tables',
 };
