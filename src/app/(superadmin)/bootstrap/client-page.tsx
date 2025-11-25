@@ -43,6 +43,7 @@ interface Props {
   skuVariants: any[];
   locationLevels: any[];
   locationEntities: any[];
+  skuPointConfigs: any[];
 }
 
 export default function SuperAdminClient({
@@ -54,6 +55,7 @@ export default function SuperAdminClient({
   skuVariants,
   locationLevels,
   locationEntities,
+  skuPointConfigs
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -189,6 +191,14 @@ export default function SuperAdminClient({
                 </FormControl>
                 <Button type="submit" variant="contained" color="primary">Add SKU Level</Button>
               </form>
+               <List className="mt-4">
+                {skuLevels.map((c) => (
+                    console.log(c),
+                  <ListItem key={c.id}>
+                    <ListItemText primary={c.levelName} secondary={c.levelNo} />
+                  </ListItem>
+                ))}
+              </List>
             </CardContent>
           </Card>
         );
@@ -227,6 +237,14 @@ export default function SuperAdminClient({
                 </FormControl>
                 <Button type="submit" variant="contained" color="primary">Add SKU Entity</Button>
               </form>
+               <List className="mt-4">
+                {skuEntities.map((c) => (
+                    console.log(c),
+                  <ListItem key={c.id}>
+                    <ListItemText primary={c.name} secondary={c.code} />
+                  </ListItem>
+                ))}
+              </List>
             </CardContent>
           </Card>
         );
@@ -250,6 +268,14 @@ export default function SuperAdminClient({
                 <TextField name="mrp" label="MRP" type="number" step="0.01" fullWidth required />
                 <Button type="submit" variant="contained" color="primary">Add Variant</Button>
               </form>
+              <List className="mt-4">
+                {skuVariants.map((c) => (
+                    console.log(c),
+                  <ListItem key={c.id}>
+                    <ListItemText primary={c.variantName} secondary={c.skuEntityId} />
+                  </ListItem>
+                ))}
+              </List>
             </CardContent>
           </Card>
         );
@@ -289,6 +315,14 @@ export default function SuperAdminClient({
                 <TextField name="pointsPerUnit" label="Points per Unit" type="number" step="0.01" fullWidth required />
                 <Button type="submit" variant="contained" color="primary">Map Points</Button>
               </form>
+                <List className="mt-4">
+                {skuPointConfigs.map((c) => (
+                    console.log(c),
+                  <ListItem key={c.id}>
+                    <ListItemText primary={c.variantName} secondary={c.skuEntityId} />
+                  </ListItem>
+                ))}
+              </List>
             </CardContent>
           </Card>
         );

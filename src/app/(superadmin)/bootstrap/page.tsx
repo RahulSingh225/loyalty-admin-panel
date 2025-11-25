@@ -24,6 +24,7 @@ export default async function SuperAdminPage() {
     skuVariants,
     locationLevels,
     locationEntities,
+    skuPointConfigs
   ] = await Promise.all([
     db.select().from(client),
     db.select().from(userTypeLevelMaster),
@@ -33,6 +34,7 @@ export default async function SuperAdminPage() {
     db.select().from(skuVariant),
     db.select().from(locationLevelMaster),
     db.select().from(locationEntity),
+    db.select().from(skuPointConfig),
   ]);
 
   return (
@@ -45,6 +47,7 @@ export default async function SuperAdminPage() {
       skuVariants={skuVariants}
       locationLevels={locationLevels}
       locationEntities={locationEntities}
+      skuPointConfigs={skuPointConfigs}
     />
   );
 }

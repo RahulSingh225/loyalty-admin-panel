@@ -973,7 +973,14 @@ export const pincodeMaster = pgTable("pincode_master", {
 	city: text(),
 	district: text(),
 	state: text(),
-});
+	latitude: numeric({ precision: 10, scale:  7 }),
+	longitude: numeric({ precision: 10, scale:  7 }),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	unique("pincode_master_pincode_key").on(table.pincode),
+]
+);
 
 export const redemptionStatuses = pgTable("redemption_statuses", {
 	id: serial().primaryKey().notNull(),
