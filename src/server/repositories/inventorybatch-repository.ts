@@ -1,6 +1,6 @@
 import { db } from "@/db/index";
 import { InventoryBatch } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import { CustomError } from "../../types";
 
 class InventoryBatchRepository {
@@ -13,10 +13,22 @@ class InventoryBatchRepository {
         });
     }
 
-    async fetchAllInventoryBatches(): Promise<any[]> {
+    async fetchAllInventoryBatches(page: number, limit: number): Promise<{ batches: any[], total: number }> {
         try {
-            const result = await db.select().from(InventoryBatch);
-            return result;
+            const offset = (page) * limit;
+
+            return await db.transaction(async (tx) => {
+                const totalResult = await tx.select({ count: sql<number>`count(*)` }).from(InventoryBatch);
+                const total = Number(totalResult[0]?.count || 0);
+
+                const batches = await tx.select()
+                    .from(InventoryBatch)
+                    .orderBy(desc(InventoryBatch.createdAt))
+                    .limit(limit)
+                    .offset(offset);
+
+                return { batches, total };
+            });
         } catch (error: any) {
             this.customError.responseMessage = error.message || "Failed to fetch Inventory Batch list.";
             throw this.customError;

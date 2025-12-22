@@ -18,7 +18,8 @@ import {
   TableHead,
   TableRow,
   Chip,
-  Stack
+  Stack,
+  TablePagination
 } from '@mui/material';
 
 import { fetchSkus } from '@/app/actions/sku.actions';
@@ -104,13 +105,17 @@ export default function QRGeneration() {
 
   const [batches, setBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalCount, setTotalCount] = useState(0);
 
   const loadQrBatches = async () => {
     setLoadingBatches(true);
     try {
-      const result = await fetchQrHistory();
+      const result = await fetchQrHistory(page, rowsPerPage);
       if (result.success) {
-        setBatches(result.data);
+        setBatches(result.data || []); // Ensure data is an array
+        setTotalCount(result.total || 0);
       } else {
         console.error('Failed to load batches:', result.message);
       }
@@ -123,7 +128,16 @@ export default function QRGeneration() {
 
   useEffect(() => {
     loadQrBatches();
-  }, []);
+  }, [page, rowsPerPage]);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   const [generating, setGenerating] = useState(false);
 
@@ -355,6 +369,15 @@ export default function QRGeneration() {
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={totalCount}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
           </CardContent>
         </Card>
 

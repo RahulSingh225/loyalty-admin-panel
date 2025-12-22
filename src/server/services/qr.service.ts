@@ -32,16 +32,21 @@ class QrService {
         }
     }
 
-    async getQrHistory() {
+    async getQrHistory(page: number = 0, limit: number = 10) {
         try {
-            const result = await inventoryBatchRepository.fetchAllInventoryBatches();
-            return { success: true, data: result };
+            const result = await inventoryBatchRepository.fetchAllInventoryBatches(page, limit);
+            return {
+                success: true,
+                data: result.batches,
+                total: result.total
+            };
         } catch (error: any) {
             console.log(error);
             return {
                 success: false,
                 message: error.message || 'Failed to fetch QR history',
-                data: []
+                data: [],
+                total: 0
             };
         }
     }

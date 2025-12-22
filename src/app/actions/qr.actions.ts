@@ -17,13 +17,13 @@ export async function generateQrCodeAction(data: {
     }
 }
 
-export async function fetchQrHistory() {
+export async function fetchQrHistory(page: number = 0, limit: number = 10) {
     try {
-        const result = await qrService.getQrHistory();
+        const result = await qrService.getQrHistory(page, limit);
         return result;
     } catch (error: any) {
         console.error("Failed to fetch QR history:", error);
-        return { success: false, message: error.message || "Failed to fetch QR history", data: [] };
+        return { success: false, message: error.message || "Failed to fetch QR history", data: [], total: 0 };
     }
 }
 
