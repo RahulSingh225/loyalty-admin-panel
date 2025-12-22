@@ -1,56 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { Box, Typography, Card, CardContent, Button, TextField, FormControl, InputLabel, Select, MenuItem, Grid, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { QrCode2, FileDownload, Print } from '@mui/icons-material';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  TextField,
+  MenuItem,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Stack
+} from '@mui/material';
 
-interface QRCode {
-  id: string;
-  type: string;
-  batch: string;
-  status: string;
-  createdAt: string;
-  expiry: string;
-  points: number;
+import { fetchSkus } from '@/app/actions/sku.actions';
+import { generateQrCodeAction, fetchQrHistory, fetchQrFileAction } from '@/app/actions/qr.actions';
+
+interface QRBatch {
+  batchId: string;
+  skuCode: string;
+  quantity: number;
+  generatedDate: string;
+  status: 'Active' | 'Inactive';
 }
 
-const qrCodeData: QRCode[] = [
-  {
-    id: 'QR001',
-    type: 'Product',
-    batch: 'B2023-001',
-    status: 'active',
-    createdAt: '2023-06-01',
-    expiry: '2023-12-31',
-    points: 100
-  },
-  {
-    id: 'QR002',
-    type: 'Event',
-    batch: 'B2023-002',
-    status: 'expired',
-    createdAt: '2023-05-15',
-    expiry: '2023-05-30',
-    points: 250
-  },
-  {
-    id: 'QR003',
-    type: 'Promotional',
-    batch: 'B2023-003',
-    status: 'pending',
-    createdAt: '2023-07-01',
-    expiry: '2023-09-30',
-    points: 500
-  }
-];
-
-export default function QRManagementPage() {
-  const [selectedType, setSelectedType] = useState('');
-  const [batchSize, setBatchSize] = useState('');
-  const [points, setPoints] = useState('');
-  
+export default function QRGeneration() {
   const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
@@ -58,135 +40,255 @@ export default function QRManagementPage() {
     }
   });
 
+  const [sku, setSku] = useState('');
+  const [qrType, setQrType] = useState('inner');
+  const [numberOfQRs, setNumberOfQRs] = useState('100');
+  const [skus, setSkus] = useState<any[]>([]);
+
+  useEffect(() => {
+    const getSkus = async () => {
+      try {
+        const data = await fetchSkus();
+        setSkus(data);
+      } catch (error) {
+        console.error('Failed to fetch SKUs', error);
+      }
+    };
+    getSkus();
+  }, []);
+
+  const [batches, setBatches] = useState<any[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
+
+  const loadQrBatches = async () => {
+    setLoadingBatches(true);
+    try {
+      const result = await fetchQrHistory();
+      if (result.success) {
+        setBatches(result.data);
+      } else {
+        console.error('Failed to load batches:', result.message);
+      }
+    } catch (error) {
+      console.error('Error loading batches:', error);
+    } finally {
+      setLoadingBatches(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQrBatches();
+  }, []);
+
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!sku || !qrType || !numberOfQRs) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const result = await generateQrCodeAction({
+        skuCode: sku,
+        type: qrType as 'inner' | 'outer',
+        quantity: parseInt(numberOfQRs, 10),
+      });
+
+      if (result.success) {
+        alert(result.message);
+        // Refresh batches after successful generation
+        await loadQrBatches();
+        // Reset form
+        setSku('');
+        setQrType('inner');
+        setNumberOfQRs('100');
+      } else {
+        alert('Error: ' + result.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('An unexpected error occurred');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDownload = async (batchId: number) => {
+    try {
+      const result = await fetchQrFileAction(batchId);
+      if (result.success && 'fileUrl' in result && result.fileUrl) {
+        // Open the signed URL in a new tab
+        window.open(result.fileUrl, '_blank');
+      } else {
+        alert('Error: ' + (result.message || 'Failed to download file'));
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download file');
+    }
+  };
+
   if (status === 'loading') {
     return <div>Loading...</div>;
   }
 
-  const handleGenerateQR = () => {
-    // Implement QR generation logic
-  };
-
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        QR Code Management
+      {/* <Typography variant="h4" gutterBottom>
+        QR Generation
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Generate and manage QR codes for your loyalty program
-      </Typography>
+        Generate and manage QR codes for your inventory
+      </Typography> */}
 
-      <Grid container spacing={3}>
-        {/* QR Generation Form */}
-        <Grid item component="div" xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Generate New QR Codes
-              </Typography>
-              <Box component="form" sx={{ mt: 2 }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>QR Code Type</InputLabel>
-                  <Select
-                    value={selectedType}
-                    label="QR Code Type"
-                    onChange={(e) => setSelectedType(e.target.value)}
-                  >
-                    <MenuItem value="product">Product QR</MenuItem>
-                    <MenuItem value="event">Event QR</MenuItem>
-                    <MenuItem value="promotional">Promotional QR</MenuItem>
-                  </Select>
-                </FormControl>
+      <Box sx={{ display: 'grid', gap: 3, marginTop: 3 }}>
+        {/* Generate QR Codes Section */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Generate QR Codes
+            </Typography>
 
-                <TextField
-                  fullWidth
-                  label="Batch Size"
-                  type="number"
-                  value={batchSize}
-                  onChange={(e) => setBatchSize(e.target.value)}
-                  sx={{ mb: 2 }}
-                />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mt: 2 }}>
+              <TextField
+                select
+                label="SKU"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                fullWidth
+                size="small"
+              >
+                <MenuItem value="">-- Select SKU --</MenuItem>
+                {skus.map((item: any) => (
+                  <MenuItem key={item.skuId} value={item.skuCode}>
+                    {item.skuCode}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-                <TextField
-                  fullWidth
-                  label="Points Value"
-                  type="number"
-                  value={points}
-                  onChange={(e) => setPoints(e.target.value)}
-                  sx={{ mb: 2 }}
-                />
+              <TextField
+                select
+                label="QR Type"
+                value={qrType}
+                onChange={(e) => setQrType(e.target.value)}
+                fullWidth
+                size="small"
+              >
+                <MenuItem value="">-- Select Type --</MenuItem>
+                <MenuItem value="inner">Inner</MenuItem>
+                <MenuItem value="outer">Outer</MenuItem>
+              </TextField>
 
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<QrCode2 />}
-                  onClick={handleGenerateQR}
-                >
-                  Generate QR Codes
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+              <TextField
+                type="number"
+                label="Quantity"
+                value={numberOfQRs}
+                onChange={(e) => setNumberOfQRs(e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Box>
 
-        {/* QR Codes List */}
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">
-                  Recent QR Codes
-                </Typography>
-                <Box>
-                  <Button startIcon={<FileDownload />} sx={{ mr: 1 }}>
-                    Export
-                  </Button>
-                  <Button startIcon={<Print />}>
-                    Print
-                  </Button>
-                </Box>
-              </Box>
+            <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 3 }}>
+              <Button variant="outlined" color="inherit">
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleGenerate}
+                disabled={generating}
+              >
+                {generating ? 'Generating...' : 'Generate QR Codes'}
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
 
-              <TableContainer>
-                <Table>
-                  <TableHead>
+        {/* QR Batches Section */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              QR Batches
+            </Typography>
+
+            <TableContainer sx={{ mt: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Batch ID</TableCell>
+                    <TableCell>SKU Code</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Created Date</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Download</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loadingBatches ? (
                     <TableRow>
-                      <TableCell>QR Code</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Batch</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Created</TableCell>
-                      <TableCell>Expiry</TableCell>
-                      <TableCell>Points</TableCell>
+                      <TableCell colSpan={7} align="center">
+                        Loading batches...
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {qrCodeData.map((qr) => (
-                      <TableRow key={qr.id}>
-                        <TableCell>{qr.id}</TableCell>
-                        <TableCell>{qr.type}</TableCell>
-                        <TableCell>{qr.batch}</TableCell>
+                  ) : batches.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        No batches found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    batches.map((batch) => (
+                      <TableRow key={batch.batchId} hover>
+                        <TableCell>{batch.batchId}</TableCell>
+                        <TableCell>{batch.skuCode}</TableCell>
+                        <TableCell sx={{ textTransform: 'capitalize' }}>{batch.type}</TableCell>
+                        <TableCell sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                          {batch.quantity}
+                        </TableCell>
+                        <TableCell>
+                          {batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : 'N/A'}
+                        </TableCell>
                         <TableCell>
                           <Chip
-                            label={qr.status.toUpperCase()}
-                            color={
-                              qr.status === 'active' ? 'success' :
-                              qr.status === 'expired' ? 'error' : 'warning'
-                            }
+                            label={batch.isActive ? 'Active' : 'Inactive'}
                             size="small"
+                            sx={{
+                              bgcolor: batch.isActive ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                              color: batch.isActive ? 'success.main' : 'error.main',
+                              fontWeight: 'medium'
+                            }}
                           />
                         </TableCell>
-                        <TableCell>{qr.createdAt}</TableCell>
-                        <TableCell>{qr.expiry}</TableCell>
-                        <TableCell>{qr.points}</TableCell>
+                        <TableCell>
+                          {batch.fileUrl ? (
+                            <Button
+                              color="primary"
+                              size="small"
+                              onClick={() => handleDownload(batch.batchId)}
+                            >
+                              Download
+                            </Button>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">
+                              Processing...
+                            </Typography>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+
+
+      </Box>
     </Box>
   );
 }

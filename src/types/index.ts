@@ -66,3 +66,38 @@ export interface NavigationItem {
   path: string
   badge?: number
 }
+
+export class CustomError extends Error {
+  statusCode: Number;
+  responseCode: Number;
+  responseMessage: string;
+  constructor(data: Partial<CustomError>) {
+    super(data?.responseMessage);
+    this.statusCode = data?.statusCode || 200;
+    this.responseCode = data?.responseCode || 500;
+    this.responseMessage =
+      data?.responseMessage || "Something went wrong, please try again";
+  }
+}
+
+export interface Sku {
+  skuId: number,
+  skuCode: string,
+  skuDescription: string,
+  skuPoints: number,
+  isSkuActive: boolean,
+  createdAt: Date
+}
+
+export interface AwsConfig {
+  region: string;
+  accessKey: string;
+  secrectKey: string;
+  bucketName: string;
+}
+
+export interface CustomMulterFilesField {
+  name: string;
+  maxCount: number;
+}
+

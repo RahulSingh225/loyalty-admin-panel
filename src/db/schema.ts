@@ -1,4 +1,4 @@
-import { pgTable, foreignKey, serial, text, integer, jsonb, varchar, timestamp, numeric, unique, boolean, uniqueIndex } from "drizzle-orm/pg-core"
+import { pgTable, foreignKey, serial, text, integer, jsonb, varchar, timestamp, numeric, unique, boolean, uniqueIndex, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -19,10 +19,10 @@ export const auditLogs = pgTable("audit_logs", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.changedBy],
-			foreignColumns: [users.id],
-			name: "audit_logs_changed_by_fkey"
-		}),
+		columns: [table.changedBy],
+		foreignColumns: [users.id],
+		name: "audit_logs_changed_by_fkey"
+	}),
 ]);
 
 export const counterSalesTransactionLogs = pgTable("counter_sales_transaction_logs", {
@@ -38,27 +38,27 @@ export const counterSalesTransactionLogs = pgTable("counter_sales_transaction_lo
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "counter_sales_transaction_logs_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "counter_sales_transaction_logs_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "counter_sales_transaction_logs_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "counter_sales_transaction_logs_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "counter_sales_transaction_logs_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "counter_sales_transaction_logs_scheme_id_fkey"
+	}),
 ]);
 
 export const electricianLedger = pgTable("electrician_ledger", {
@@ -74,10 +74,10 @@ export const electricianLedger = pgTable("electrician_ledger", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "electrician_ledger_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "electrician_ledger_user_id_fkey"
+	}).onDelete("cascade"),
 ]);
 
 export const qrCodes = pgTable("qr_codes", {
@@ -97,20 +97,20 @@ export const qrCodes = pgTable("qr_codes", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.typeId],
-			foreignColumns: [qrTypes.id],
-			name: "qr_codes_type_id_fkey"
-		}),
+		columns: [table.typeId],
+		foreignColumns: [qrTypes.id],
+		name: "qr_codes_type_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.parentQrId],
-			foreignColumns: [table.id],
-			name: "qr_codes_parent_qr_id_fkey"
-		}),
+		columns: [table.parentQrId],
+		foreignColumns: [table.id],
+		name: "qr_codes_parent_qr_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.scannedBy],
-			foreignColumns: [users.id],
-			name: "qr_codes_scanned_by_fkey"
-		}),
+		columns: [table.scannedBy],
+		foreignColumns: [users.id],
+		name: "qr_codes_scanned_by_fkey"
+	}),
 	unique("qr_codes_code_key").on(table.code),
 ]);
 
@@ -128,30 +128,30 @@ export const redemptions = pgTable("redemptions", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "redemptions_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "redemptions_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.channelId],
-			foreignColumns: [redemptionChannels.id],
-			name: "redemptions_channel_id_fkey"
-		}),
+		columns: [table.channelId],
+		foreignColumns: [redemptionChannels.id],
+		name: "redemptions_channel_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.status],
-			foreignColumns: [redemptionStatuses.id],
-			name: "redemptions_status_fkey"
-		}),
+		columns: [table.status],
+		foreignColumns: [redemptionStatuses.id],
+		name: "redemptions_status_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "redemptions_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "redemptions_scheme_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.approvedBy],
-			foreignColumns: [users.id],
-			name: "redemptions_approved_by_fkey"
-		}),
+		columns: [table.approvedBy],
+		foreignColumns: [users.id],
+		name: "redemptions_approved_by_fkey"
+	}),
 	unique("redemptions_redemption_id_key").on(table.redemptionId),
 ]);
 
@@ -191,10 +191,10 @@ export const retailers = pgTable("retailers", {
 	lastSettlementDate: timestamp("last_settlement_date", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "retailers_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "retailers_user_id_fkey"
+	}),
 	unique("retailers_unique_id_key").on(table.uniqueId),
 	unique("retailers_phone_key").on(table.phone),
 	unique("retailers_referral_code_key").on(table.referralCode),
@@ -227,30 +227,30 @@ export const users = pgTable("users", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.roleId],
-			foreignColumns: [userTypeEntity.id],
-			name: "users_role_id_fkey"
-		}),
+		columns: [table.roleId],
+		foreignColumns: [userTypeEntity.id],
+		name: "users_role_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.referrerId],
-			foreignColumns: [table.id],
-			name: "users_referrer_id_fkey"
-		}),
+		columns: [table.referrerId],
+		foreignColumns: [table.id],
+		name: "users_referrer_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.onboardingTypeId],
-			foreignColumns: [onboardingTypes.id],
-			name: "users_onboarding_type_id_fkey"
-		}),
+		columns: [table.onboardingTypeId],
+		foreignColumns: [onboardingTypes.id],
+		name: "users_onboarding_type_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.approvalStatusId],
-			foreignColumns: [approvalStatuses.id],
-			name: "users_approval_status_id_fkey"
-		}),
+		columns: [table.approvalStatusId],
+		foreignColumns: [approvalStatuses.id],
+		name: "users_approval_status_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.languageId],
-			foreignColumns: [languages.id],
-			name: "users_language_id_fkey"
-		}),
+		columns: [table.languageId],
+		foreignColumns: [languages.id],
+		name: "users_language_id_fkey"
+	}),
 	unique("users_phone_key").on(table.phone),
 	unique("users_referral_code_key").on(table.referralCode),
 ]);
@@ -270,10 +270,10 @@ export const campaigns = pgTable("campaigns", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.schemeType],
-			foreignColumns: [schemeTypes.id],
-			name: "campaigns_scheme_type_fkey"
-		}),
+		columns: [table.schemeType],
+		foreignColumns: [schemeTypes.id],
+		name: "campaigns_scheme_type_fkey"
+	}),
 ]);
 
 export const counterSales = pgTable("counter_sales", {
@@ -313,15 +313,15 @@ export const counterSales = pgTable("counter_sales", {
 	lastSettlementDate: timestamp("last_settlement_date", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.attachedRetailerId],
-			foreignColumns: [users.id],
-			name: "counter_sales_attached_retailer_id_fkey"
-		}),
+		columns: [table.attachedRetailerId],
+		foreignColumns: [users.id],
+		name: "counter_sales_attached_retailer_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "counter_sales_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "counter_sales_user_id_fkey"
+	}),
 	unique("counter_sales_unique_id_key").on(table.uniqueId),
 	unique("counter_sales_phone_key").on(table.phone),
 	unique("counter_sales_referral_code_key").on(table.referralCode),
@@ -346,10 +346,10 @@ export const appConfigs = pgTable("app_configs", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.updatedBy],
-			foreignColumns: [users.id],
-			name: "app_configs_updated_by_fkey"
-		}),
+		columns: [table.updatedBy],
+		foreignColumns: [users.id],
+		name: "app_configs_updated_by_fkey"
+	}),
 	unique("app_configs_key_key").on(table.key),
 ]);
 
@@ -366,10 +366,10 @@ export const counterSalesLedger = pgTable("counter_sales_ledger", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "counter_sales_ledger_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "counter_sales_ledger_user_id_fkey"
+	}).onDelete("cascade"),
 ]);
 
 export const counterSalesTransactions = pgTable("counter_sales_transactions", {
@@ -384,27 +384,27 @@ export const counterSalesTransactions = pgTable("counter_sales_transactions", {
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "counter_sales_transactions_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "counter_sales_transactions_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "counter_sales_transactions_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "counter_sales_transactions_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "counter_sales_transactions_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "counter_sales_transactions_scheme_id_fkey"
+	}),
 ]);
 
 export const electricianTransactionLogs = pgTable("electrician_transaction_logs", {
@@ -420,27 +420,27 @@ export const electricianTransactionLogs = pgTable("electrician_transaction_logs"
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "electrician_transaction_logs_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "electrician_transaction_logs_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "electrician_transaction_logs_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "electrician_transaction_logs_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "electrician_transaction_logs_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "electrician_transaction_logs_scheme_id_fkey"
+	}),
 ]);
 
 export const electricianTransactions = pgTable("electrician_transactions", {
@@ -455,27 +455,27 @@ export const electricianTransactions = pgTable("electrician_transactions", {
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "electrician_transactions_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "electrician_transactions_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "electrician_transactions_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "electrician_transactions_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "electrician_transactions_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "electrician_transactions_scheme_id_fkey"
+	}),
 ]);
 
 export const electricians = pgTable("electricians", {
@@ -515,10 +515,10 @@ export const electricians = pgTable("electricians", {
 	lastSettlementDate: timestamp("last_settlement_date", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "electricians_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "electricians_user_id_fkey"
+	}),
 	unique("electricians_unique_id_key").on(table.uniqueId),
 	unique("electricians_phone_key").on(table.phone),
 	unique("electricians_referral_code_key").on(table.referralCode),
@@ -538,15 +538,15 @@ export const eventLogs = pgTable("event_logs", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "event_logs_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "event_logs_user_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [eventMaster.id],
-			name: "event_logs_event_id_fkey"
-		}).onDelete("restrict"),
+		columns: [table.eventId],
+		foreignColumns: [eventMaster.id],
+		name: "event_logs_event_id_fkey"
+	}).onDelete("restrict"),
 ]);
 
 export const notifications = pgTable("notifications", {
@@ -562,10 +562,10 @@ export const notifications = pgTable("notifications", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "notifications_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "notifications_user_id_fkey"
+	}),
 ]);
 
 export const referrals = pgTable("referrals", {
@@ -577,15 +577,15 @@ export const referrals = pgTable("referrals", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.referrerId],
-			foreignColumns: [users.id],
-			name: "referrals_referrer_id_fkey"
-		}),
+		columns: [table.referrerId],
+		foreignColumns: [users.id],
+		name: "referrals_referrer_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.referredId],
-			foreignColumns: [users.id],
-			name: "referrals_referred_id_fkey"
-		}),
+		columns: [table.referredId],
+		foreignColumns: [users.id],
+		name: "referrals_referred_id_fkey"
+	}),
 ]);
 
 export const retailerLedger = pgTable("retailer_ledger", {
@@ -601,10 +601,10 @@ export const retailerLedger = pgTable("retailer_ledger", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "retailer_ledger_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "retailer_ledger_user_id_fkey"
+	}).onDelete("cascade"),
 ]);
 
 export const retailerTransactionLogs = pgTable("retailer_transaction_logs", {
@@ -620,27 +620,27 @@ export const retailerTransactionLogs = pgTable("retailer_transaction_logs", {
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "retailer_transaction_logs_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "retailer_transaction_logs_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "retailer_transaction_logs_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "retailer_transaction_logs_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "retailer_transaction_logs_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "retailer_transaction_logs_scheme_id_fkey"
+	}),
 ]);
 
 export const retailerTransactions = pgTable("retailer_transactions", {
@@ -655,27 +655,27 @@ export const retailerTransactions = pgTable("retailer_transactions", {
 	serialNumber: text("serial_number"),
 	qrCode: text("qr_code"),
 	remarks: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	metadata: jsonb().notNull(),
 	schemeId: integer("scheme_id"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "retailer_transactions_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "retailer_transactions_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.earningType],
-			foreignColumns: [earningTypes.id],
-			name: "retailer_transactions_earning_type_fkey"
-		}),
+		columns: [table.earningType],
+		foreignColumns: [earningTypes.id],
+		name: "retailer_transactions_earning_type_fkey"
+	}),
 	foreignKey({
-			columns: [table.schemeId],
-			foreignColumns: [schemes.id],
-			name: "retailer_transactions_scheme_id_fkey"
-		}),
+		columns: [table.schemeId],
+		foreignColumns: [schemes.id],
+		name: "retailer_transactions_scheme_id_fkey"
+	}),
 ]);
 
 export const systemLogs = pgTable("system_logs", {
@@ -693,36 +693,36 @@ export const systemLogs = pgTable("system_logs", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "system_logs_user_id_fkey"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "system_logs_user_id_fkey"
+	}),
 ]);
 
-export const userScopeMapping = pgTable("user_scope_mapping", {
-	id: serial().primaryKey().notNull(),
-	userTypeId: integer("user_type_id"),
-	userId: integer("user_id"),
-	scopeType: varchar("scope_type", { length: 20 }).notNull(),
-	scopeLevelId: integer("scope_level_id").notNull(),
-	scopeEntityId: integer("scope_entity_id"),
-	accessType: varchar("access_type", { length: 20 }).default('specific').notNull(),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-}, (table) => [
-	uniqueIndex("user_scope_mapping_unique").using("btree", table.userTypeId.asc().nullsLast().op("int4_ops"), table.userId.asc().nullsLast().op("int4_ops"), table.scopeType.asc().nullsLast().op("int4_ops"), table.scopeLevelId.asc().nullsLast().op("int4_ops"), table.scopeEntityId.asc().nullsLast().op("text_ops")).where(sql`(is_active = true)`),
-	foreignKey({
-			columns: [table.userTypeId],
-			foreignColumns: [userTypeEntity.id],
-			name: "user_scope_mapping_user_type_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "user_scope_mapping_user_id_fkey"
-		}).onDelete("cascade"),
-]);
+// export const userScopeMapping = pgTable("user_scope_mapping", {
+// 	id: serial().primaryKey().notNull(),
+// 	userTypeId: integer("user_type_id"),
+// 	userId: integer("user_id"),
+// 	scopeType: varchar("scope_type", { length: 20 }).notNull(),
+// 	scopeLevelId: integer("scope_level_id").notNull(),
+// 	scopeEntityId: integer("scope_entity_id"),
+// 	accessType: varchar("access_type", { length: 20 }).default('specific').notNull(),
+// 	isActive: boolean("is_active").default(true).notNull(),
+// 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+// 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+// }, (table) => [
+// 	uniqueIndex("user_scope_mapping_unique").using("btree", table.userTypeId.asc().nullsLast().op("int4_ops"), table.userId.asc().nullsLast().op("int4_ops"), table.scopeType.asc().nullsLast().op("int4_ops"), table.scopeLevelId.asc().nullsLast().op("int4_ops"), table.scopeEntityId.asc().nullsLast().op("text_ops")).where(sql`(is_active = true)`),
+// 	foreignKey({
+// 			columns: [table.userTypeId],
+// 			foreignColumns: [userTypeEntity.id],
+// 			name: "user_scope_mapping_user_type_id_fkey"
+// 		}).onDelete("cascade"),
+// 	foreignKey({
+// 			columns: [table.userId],
+// 			foreignColumns: [users.id],
+// 			name: "user_scope_mapping_user_id_fkey"
+// 		}).onDelete("cascade"),
+// ]);
 
 export const participantSkuAccess = pgTable("participant_sku_access", {
 	id: serial().primaryKey().notNull(),
@@ -735,20 +735,20 @@ export const participantSkuAccess = pgTable("participant_sku_access", {
 	isActive: boolean("is_active").default(true),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "participant_sku_access_user_id_fkey"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "participant_sku_access_user_id_fkey"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.skuLevelId],
-			foreignColumns: [skuLevelMaster.id],
-			name: "participant_sku_access_sku_level_id_fkey"
-		}),
+		columns: [table.skuLevelId],
+		foreignColumns: [skuLevelMaster.id],
+		name: "participant_sku_access_sku_level_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.skuEntityId],
-			foreignColumns: [skuEntity.id],
-			name: "participant_sku_access_sku_entity_id_fkey"
-		}),
+		columns: [table.skuEntityId],
+		foreignColumns: [skuEntity.id],
+		name: "participant_sku_access_sku_entity_id_fkey"
+	}),
 	unique("participant_sku_access_user_id_sku_level_id_sku_entity_id_key").on(table.userId, table.skuLevelId, table.skuEntityId),
 ]);
 
@@ -769,20 +769,20 @@ export const locationEntity = pgTable("location_entity", {
 	parentEntityId: integer("parent_entity_id"),
 }, (table) => [
 	foreignKey({
-			columns: [table.levelId],
-			foreignColumns: [locationLevelMaster.id],
-			name: "location_entity_level_id_fkey"
-		}),
+		columns: [table.levelId],
+		foreignColumns: [locationLevelMaster.id],
+		name: "location_entity_level_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.parentEntityId],
-			foreignColumns: [table.id],
-			name: "location_entity_parent_entity_id_fkey"
-		}),
+		columns: [table.parentEntityId],
+		foreignColumns: [table.id],
+		name: "location_entity_parent_entity_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.clientId],
-			foreignColumns: [client.id],
-			name: "fk_entity_client"
-		}),
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "fk_entity_client"
+	}),
 ]);
 
 export const locationLevelMaster = pgTable("location_level_master", {
@@ -793,10 +793,10 @@ export const locationLevelMaster = pgTable("location_level_master", {
 	parentLevelId: integer("parent_level_id"),
 }, (table) => [
 	foreignKey({
-			columns: [table.clientId],
-			foreignColumns: [client.id],
-			name: "fk_level_client"
-		}),
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "fk_level_client"
+	}),
 ]);
 
 export const skuEntity = pgTable("sku_entity", {
@@ -809,20 +809,20 @@ export const skuEntity = pgTable("sku_entity", {
 	isActive: boolean("is_active").default(true),
 }, (table) => [
 	foreignKey({
-			columns: [table.clientId],
-			foreignColumns: [client.id],
-			name: "sku_entity_client_id_fkey"
-		}),
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "sku_entity_client_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.levelId],
-			foreignColumns: [skuLevelMaster.id],
-			name: "sku_entity_level_id_fkey"
-		}),
+		columns: [table.levelId],
+		foreignColumns: [skuLevelMaster.id],
+		name: "sku_entity_level_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.parentEntityId],
-			foreignColumns: [table.id],
-			name: "sku_entity_parent_entity_id_fkey"
-		}),
+		columns: [table.parentEntityId],
+		foreignColumns: [table.id],
+		name: "sku_entity_parent_entity_id_fkey"
+	}),
 ]);
 
 export const skuLevelMaster = pgTable("sku_level_master", {
@@ -834,10 +834,10 @@ export const skuLevelMaster = pgTable("sku_level_master", {
 }, (table) => [
 	uniqueIndex("uq_client_level").using("btree", table.clientId.asc().nullsLast().op("int4_ops"), table.levelNo.asc().nullsLast().op("int4_ops")),
 	foreignKey({
-			columns: [table.clientId],
-			foreignColumns: [client.id],
-			name: "sku_level_master_client_id_fkey"
-		}),
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "sku_level_master_client_id_fkey"
+	}),
 ]);
 
 export const skuPointConfig = pgTable("sku_point_config", {
@@ -845,27 +845,27 @@ export const skuPointConfig = pgTable("sku_point_config", {
 	clientId: integer("client_id").notNull(),
 	skuVariantId: integer("sku_variant_id").notNull(),
 	userTypeId: integer("user_type_id").notNull(),
-	pointsPerUnit: numeric("points_per_unit", { precision: 10, scale:  2 }).notNull(),
+	pointsPerUnit: numeric("points_per_unit", { precision: 10, scale: 2 }).notNull(),
 	validFrom: timestamp("valid_from", { mode: 'string' }),
 	validTo: timestamp("valid_to", { mode: 'string' }),
 	remarks: text(),
 }, (table) => [
 	uniqueIndex("uq_sku_user_type").using("btree", table.clientId.asc().nullsLast().op("int4_ops"), table.skuVariantId.asc().nullsLast().op("int4_ops"), table.userTypeId.asc().nullsLast().op("int4_ops")),
 	foreignKey({
-			columns: [table.clientId],
-			foreignColumns: [client.id],
-			name: "sku_point_config_client_id_fkey"
-		}),
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "sku_point_config_client_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.skuVariantId],
-			foreignColumns: [skuVariant.id],
-			name: "sku_point_config_sku_variant_id_fkey"
-		}),
+		columns: [table.skuVariantId],
+		foreignColumns: [skuVariant.id],
+		name: "sku_point_config_sku_variant_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.userTypeId],
-			foreignColumns: [userTypeEntity.id],
-			name: "sku_point_config_user_type_id_fkey"
-		}),
+		columns: [table.userTypeId],
+		foreignColumns: [userTypeEntity.id],
+		name: "sku_point_config_user_type_id_fkey"
+	}),
 ]);
 
 export const locationEntityPincode = pgTable("location_entity_pincode", {
@@ -874,15 +874,15 @@ export const locationEntityPincode = pgTable("location_entity_pincode", {
 	pincodeId: integer("pincode_id").notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.entityId],
-			foreignColumns: [locationEntity.id],
-			name: "location_entity_pincode_entity_id_fkey"
-		}),
+		columns: [table.entityId],
+		foreignColumns: [locationEntity.id],
+		name: "location_entity_pincode_entity_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.pincodeId],
-			foreignColumns: [pincodeMaster.id],
-			name: "location_entity_pincode_pincode_id_fkey"
-		}),
+		columns: [table.pincodeId],
+		foreignColumns: [pincodeMaster.id],
+		name: "location_entity_pincode_pincode_id_fkey"
+	}),
 ]);
 
 export const skuVariant = pgTable("sku_variant", {
@@ -890,14 +890,14 @@ export const skuVariant = pgTable("sku_variant", {
 	skuEntityId: integer("sku_entity_id").notNull(),
 	variantName: varchar("variant_name", { length: 150 }).notNull(),
 	packSize: text("pack_size"),
-	mrp: numeric({ precision: 10, scale:  2 }),
+	mrp: numeric({ precision: 10, scale: 2 }),
 	isActive: boolean("is_active").default(true),
 }, (table) => [
 	foreignKey({
-			columns: [table.skuEntityId],
-			foreignColumns: [skuEntity.id],
-			name: "sku_variant_sku_entity_id_fkey"
-		}),
+		columns: [table.skuEntityId],
+		foreignColumns: [skuEntity.id],
+		name: "sku_variant_sku_entity_id_fkey"
+	}),
 ]);
 
 export const creatives = pgTable("creatives", {
@@ -917,10 +917,10 @@ export const creatives = pgTable("creatives", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.typeId],
-			foreignColumns: [creativesTypes.id],
-			name: "creatives_type_id_fkey"
-		}).onDelete("restrict"),
+		columns: [table.typeId],
+		foreignColumns: [creativesTypes.id],
+		name: "creatives_type_id_fkey"
+	}).onDelete("restrict"),
 ]);
 
 export const earningTypes = pgTable("earning_types", {
@@ -973,8 +973,8 @@ export const pincodeMaster = pgTable("pincode_master", {
 	city: text(),
 	district: text(),
 	state: text(),
-	latitude: numeric({ precision: 10, scale:  7 }),
-	longitude: numeric({ precision: 10, scale:  7 }),
+	latitude: numeric({ precision: 10, scale: 7 }),
+	longitude: numeric({ precision: 10, scale: 7 }),
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
@@ -1027,10 +1027,10 @@ export const schemes = pgTable("schemes", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
 	foreignKey({
-			columns: [table.schemeType],
-			foreignColumns: [schemeTypes.id],
-			name: "schemes_scheme_type_fkey"
-		}),
+		columns: [table.schemeType],
+		foreignColumns: [schemeTypes.id],
+		name: "schemes_scheme_type_fkey"
+	}),
 ]);
 
 export const schemeTypes = pgTable("scheme_types", {
@@ -1061,15 +1061,15 @@ export const userTypeEntity = pgTable("user_type_entity", {
 	isActive: boolean("is_active").default(true),
 }, (table) => [
 	foreignKey({
-			columns: [table.levelId],
-			foreignColumns: [userTypeLevelMaster.id],
-			name: "user_type_entity_level_id_fkey"
-		}),
+		columns: [table.levelId],
+		foreignColumns: [userTypeLevelMaster.id],
+		name: "user_type_entity_level_id_fkey"
+	}),
 	foreignKey({
-			columns: [table.parentTypeId],
-			foreignColumns: [table.id],
-			name: "user_type_entity_parent_type_id_fkey"
-		}),
+		columns: [table.parentTypeId],
+		foreignColumns: [table.id],
+		name: "user_type_entity_parent_type_id_fkey"
+	}),
 ]);
 
 export const ticketTypes = pgTable("ticket_types", {
@@ -1101,15 +1101,15 @@ export const tickets = pgTable("tickets", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.typeId],
-			foreignColumns: [ticketTypes.id],
-			name: "tickets_type_id_fkey"
-		}).onDelete("restrict"),
+		columns: [table.typeId],
+		foreignColumns: [ticketTypes.id],
+		name: "tickets_type_id_fkey"
+	}).onDelete("restrict"),
 	foreignKey({
-			columns: [table.statusId],
-			foreignColumns: [ticketStatuses.id],
-			name: "tickets_status_id_fkey"
-		}).onDelete("restrict"),
+		columns: [table.statusId],
+		foreignColumns: [ticketStatuses.id],
+		name: "tickets_status_id_fkey"
+	}).onDelete("restrict"),
 ]);
 
 export const ticketStatuses = pgTable("ticket_statuses", {
@@ -1129,8 +1129,55 @@ export const userTypeLevelMaster = pgTable("user_type_level_master", {
 	parentLevelId: integer("parent_level_id"),
 }, (table) => [
 	foreignKey({
-			columns: [table.parentLevelId],
-			foreignColumns: [table.id],
-			name: "user_type_level_master_parent_level_id_fkey"
-		}),
+		columns: [table.parentLevelId],
+		foreignColumns: [table.id],
+		name: "user_type_level_master_parent_level_id_fkey"
+	}),
 ]);
+
+export const SkuMasterModel = pgTable("tbl_sku_master", {
+	skuId: serial("sku_id").primaryKey(),
+	skuCode: varchar("sku_code", { length: 255 }).notNull().unique(),
+	skuDescription: varchar("sku_description", { length: 255 }),
+	skuPoints: integer("sku_points").notNull(),
+	vertical: varchar("vertical", { length: 255 }).notNull(),
+	range: varchar("range", { length: 255 }).notNull(),
+	l1: varchar("l1", { length: 255 }),
+	l2: varchar("l2", { length: 255 }),
+	l3: varchar("l3", { length: 255 }),
+	l4: varchar("l4", { length: 255 }),
+	l5: varchar("l5", { length: 255 }),
+	l6: varchar("l6", { length: 255 }),
+	isSkuActive: boolean("is_sku_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const RandomKeysModel = pgTable("tbl_random_keys", {
+	randomKeyId: serial("random_key_id").primaryKey(),
+	randomKey: varchar("random_key", { length: 255 }).notNull().unique(),
+	status: boolean("status").notNull().default(false),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const InventoryModel = pgTable("tbl_inventory", {
+	inventoryId: serial("inventory_id").primaryKey(),
+	serialNumber: varchar("serial_number", { length: 255 }).notNull().unique(),
+	batchId: integer("batch_id").notNull(),
+	isActive: boolean("is_active").notNull().default(true),
+	isQrScanned: boolean("is_qr_scanned").notNull().default(false)
+});
+
+export const inventoryTypeEnum = pgEnum("inventory_type", ["inner", "outer"]);
+
+export const InventoryBatch = pgTable("tbl_inventory_batch", {
+	batchId: serial("batch_id").primaryKey(),
+	skuCode: varchar("sku_code", { length: 255 }).notNull(),
+	quantity: integer("quantity").notNull(),
+	type: inventoryTypeEnum("type").notNull(),
+	fileUrl: varchar("file_url", { length: 255 }),
+	isActive: boolean("is_active").notNull().default(true),
+	createdBy: integer("created_by"),
+	updatedBy: integer("updated_by"),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

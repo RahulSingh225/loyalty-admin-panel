@@ -33,13 +33,13 @@ export const TOPBAR_CONFIG: Record<string, PageConfig> = {
   "/qr-management": {
     title: "QR Management",
     subtitle: "Generate and manage QR codes for products",
-    actions: [
-      {
-        label: "Generate QR Codes",
-        icon: "fas fa-plus",
-        onClick: () => alert("Generate QR clicked"),
-      },
-    ],
+    // actions: [
+    //   {
+    //     label: "Generate QR Codes",
+    //     icon: "fas fa-plus",
+    //     onClick: () => alert("Generate QR clicked"),
+    //   },
+    // ],
   },
 
   "/communication": {
