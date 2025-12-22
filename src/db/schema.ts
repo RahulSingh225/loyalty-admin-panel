@@ -1142,12 +1142,12 @@ export const SkuMasterModel = pgTable("tbl_sku_master", {
 	skuPoints: integer("sku_points").notNull(),
 	vertical: varchar("vertical", { length: 255 }).notNull(),
 	range: varchar("range", { length: 255 }).notNull(),
-	// l1: varchar("l1", { length: 255 }),
-	// l2: varchar("l2", { length: 255 }),
-	// l3: varchar("l3", { length: 255 }),
-	// l4: varchar("l4", { length: 255 }),
-	// l5: varchar("l5", { length: 255 }),
-	// l6: varchar("l6", { length: 255 }),
+	l1: integer("l1"),
+	l2: integer("l2"),
+	l3: integer("l3"),
+	l4: integer("l4"),
+	l5: integer("l5"),
+	l6: integer("l6"),
 	isSkuActive: boolean("is_sku_active").default(true).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -1180,4 +1180,56 @@ export const InventoryBatch = pgTable("tbl_inventory_batch", {
 	updatedBy: integer("updated_by"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const SkuLevel1Master = pgTable("sku_level1_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const SkuLevel2Master = pgTable("sku_level2_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	l1Id: integer("l1_id")
+		.references(() => SkuLevel1Master.id),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const SkuLevel3Master = pgTable("sku_level3_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	l2Id: integer("l2_id")
+		.references(() => SkuLevel2Master.id),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const SkuLevel4Master = pgTable("sku_level4_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	l3Id: integer("l3_id")
+		.references(() => SkuLevel3Master.id),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const SkuLevel5Master = pgTable("sku_level5_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	l4Id: integer("l4_id")
+		.references(() => SkuLevel4Master.id),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const SkuLevel6Master = pgTable("sku_level6_master", {
+	id: serial("id").primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	l5Id: integer("l5_id")
+		.references(() => SkuLevel5Master.id),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
 });

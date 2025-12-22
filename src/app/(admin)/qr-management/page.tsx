@@ -23,6 +23,14 @@ import {
 
 import { fetchSkus } from '@/app/actions/sku.actions';
 import { generateQrCodeAction, fetchQrHistory, fetchQrFileAction } from '@/app/actions/qr.actions';
+import {
+  fetchL1Action,
+  fetchL2Action,
+  fetchL3Action,
+  fetchL4Action,
+  fetchL5Action,
+  fetchL6Action
+} from '@/app/actions/sku-level.actions';
 
 interface QRBatch {
   batchId: string;
@@ -44,18 +52,55 @@ export default function QRGeneration() {
   const [qrType, setQrType] = useState('inner');
   const [numberOfQRs, setNumberOfQRs] = useState('100');
   const [skus, setSkus] = useState<any[]>([]);
+  const [filteredSkus, setFilteredSkus] = useState<any[]>([]);
+
+  // Level State
+  const [l1List, setL1List] = useState<any[]>([]);
+  const [l2List, setL2List] = useState<any[]>([]);
+  const [l3List, setL3List] = useState<any[]>([]);
+  const [l4List, setL4List] = useState<any[]>([]);
+  const [l5List, setL5List] = useState<any[]>([]);
+  const [l6List, setL6List] = useState<any[]>([]);
+
+  const [selectedL1, setSelectedL1] = useState<number | ''>('');
+  const [selectedL2, setSelectedL2] = useState<number | ''>('');
+  const [selectedL3, setSelectedL3] = useState<number | ''>('');
+  const [selectedL4, setSelectedL4] = useState<number | ''>('');
+  const [selectedL5, setSelectedL5] = useState<number | ''>('');
+  const [selectedL6, setSelectedL6] = useState<number | ''>('');
 
   useEffect(() => {
     const getSkus = async () => {
       try {
         const data = await fetchSkus();
         setSkus(data);
+        setFilteredSkus(data);
       } catch (error) {
         console.error('Failed to fetch SKUs', error);
       }
     };
     getSkus();
+
+    // Fetch ALL levels initially since there is no strict mapping
+    fetchL1Action().then(setL1List);
+    fetchL2Action().then(setL2List);
+    fetchL3Action().then(setL3List);
+    fetchL4Action().then(setL4List);
+    fetchL5Action().then(setL5List);
+    fetchL6Action().then(setL6List);
   }, []);
+
+  // Filter SKUs when selections change
+  useEffect(() => {
+    let result = skus;
+    if (selectedL1) result = result.filter(s => s.l1 === selectedL1);
+    if (selectedL2) result = result.filter(s => s.l2 === selectedL2);
+    if (selectedL3) result = result.filter(s => s.l3 === selectedL3);
+    if (selectedL4) result = result.filter(s => s.l4 === selectedL4);
+    if (selectedL5) result = result.filter(s => s.l5 === selectedL5);
+    if (selectedL6) result = result.filter(s => s.l6 === selectedL6);
+    setFilteredSkus(result);
+  }, [skus, selectedL1, selectedL2, selectedL3, selectedL4, selectedL5, selectedL6]);
 
   const [batches, setBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
@@ -152,6 +197,32 @@ export default function QRGeneration() {
             </Typography>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mt: 2 }}>
+              {/* L1 - L6 Filters */}
+              <TextField select label="L1 Level" value={selectedL1} onChange={(e) => setSelectedL1(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L1 --</MenuItem>
+                {l1List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="L2 Level" value={selectedL2} onChange={(e) => setSelectedL2(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L2 --</MenuItem>
+                {l2List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="L3 Level" value={selectedL3} onChange={(e) => setSelectedL3(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L3 --</MenuItem>
+                {l3List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="L4 Level" value={selectedL4} onChange={(e) => setSelectedL4(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L4 --</MenuItem>
+                {l4List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="L5 Level" value={selectedL5} onChange={(e) => setSelectedL5(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L5 --</MenuItem>
+                {l5List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="L6 Level" value={selectedL6} onChange={(e) => setSelectedL6(Number(e.target.value) || '')} fullWidth size="small">
+                <MenuItem value="">-- Select L6 --</MenuItem>
+                {l6List.map((item: any) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+              </TextField>
+
               <TextField
                 select
                 label="SKU"
@@ -161,7 +232,7 @@ export default function QRGeneration() {
                 size="small"
               >
                 <MenuItem value="">-- Select SKU --</MenuItem>
-                {skus.map((item: any) => (
+                {filteredSkus.map((item: any) => (
                   <MenuItem key={item.skuId} value={item.skuCode}>
                     {item.skuCode}
                   </MenuItem>

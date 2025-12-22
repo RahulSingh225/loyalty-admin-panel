@@ -8,7 +8,6 @@ import { fileMiddleware } from '@/server/middlewares/file-middleware';
 class QrService {
     async generateQr(req: GenerateQrPayload) {
         try {
-            console.log('----------', req, '--------');
             const payload = new GenerateQrPayload(req); // Validate using constructor
             const doesSkuExist = await skuMasterRepository.doesSkuExist(payload.skuCode);
             if (!doesSkuExist) {
