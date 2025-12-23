@@ -20,36 +20,36 @@ export async function fetchL2Action(l1Id?: number) {
     }
 }
 
-export async function fetchL3Action(l2Id?: number) {
+export async function fetchL3Action(l1Id?: number, l2Id?: number) {
     try {
-        return await skuLevelService.getL3(l2Id);
+        return await skuLevelService.getL3(l1Id, l2Id);
     } catch (error) {
         console.error("Failed to fetch L3:", error);
         return [];
     }
 }
 
-export async function fetchL4Action(l3Id?: number) {
+export async function fetchL4Action(l1Id?: number, l2Id?: number, l3Id?: number) {
     try {
-        return await skuLevelService.getL4(l3Id);
+        return await skuLevelService.getL4(l1Id, l2Id, l3Id);
     } catch (error) {
         console.error("Failed to fetch L4:", error);
         return [];
     }
 }
 
-export async function fetchL5Action(l4Id?: number) {
+export async function fetchL5Action(l1Id?: number, l2Id?: number, l3Id?: number, l4Id?: number) {
     try {
-        return await skuLevelService.getL5(l4Id);
+        return await skuLevelService.getL5(l1Id, l2Id, l3Id, l4Id);
     } catch (error) {
         console.error("Failed to fetch L5:", error);
         return [];
     }
 }
 
-export async function fetchL6Action(l5Id?: number) {
+export async function fetchL6Action(l1Id?: number, l2Id?: number, l3Id?: number, l4Id?: number, l5Id?: number) {
     try {
-        return await skuLevelService.getL6(l5Id);
+        return await skuLevelService.getL6(l1Id, l2Id, l3Id, l4Id, l5Id);
     } catch (error) {
         console.error("Failed to fetch L6:", error);
         return [];

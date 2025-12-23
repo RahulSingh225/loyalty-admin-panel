@@ -70,10 +70,12 @@ export default function QRGeneration() {
   const [selectedL5, setSelectedL5] = useState<number | ''>('');
   const [selectedL6, setSelectedL6] = useState<number | ''>('');
 
+  // Fetch SKUs on mount
   useEffect(() => {
     const getSkus = async () => {
       try {
         const data = await fetchSkus();
+        console.log(data)
         setSkus(data);
         setFilteredSkus(data);
       } catch (error) {
@@ -82,14 +84,95 @@ export default function QRGeneration() {
     };
     getSkus();
 
-    // Fetch ALL levels initially since there is no strict mapping
+    // Fetch L1 on mount
     fetchL1Action().then(setL1List);
-    fetchL2Action().then(setL2List);
-    fetchL3Action().then(setL3List);
-    fetchL4Action().then(setL4List);
-    fetchL5Action().then(setL5List);
-    fetchL6Action().then(setL6List);
   }, []);
+
+  // Fetch L2 when L1 changes
+  useEffect(() => {
+    if (selectedL1) {
+      fetchL2Action(selectedL1).then(setL2List);
+    } else {
+      setL2List([]);
+    }
+    // Reset child selections
+    setSelectedL2('');
+    setSelectedL3('');
+    setSelectedL4('');
+    setSelectedL5('');
+    setSelectedL6('');
+    setL3List([]);
+    setL4List([]);
+    setL5List([]);
+    setL6List([]);
+  }, [selectedL1]);
+
+  // Fetch L3 when L1 or L2 changes
+  useEffect(() => {
+    if (selectedL2) {
+      fetchL3Action(selectedL1 || undefined, selectedL2).then(setL3List);
+    } else {
+      setL3List([]);
+    }
+    // Reset child selections
+    setSelectedL3('');
+    setSelectedL4('');
+    setSelectedL5('');
+    setSelectedL6('');
+    setL4List([]);
+    setL5List([]);
+    setL6List([]);
+  }, [selectedL1, selectedL2]);
+
+  // Fetch L4 when L1, L2, or L3 changes
+  useEffect(() => {
+    if (selectedL3) {
+      fetchL4Action(selectedL1 || undefined, selectedL2 || undefined, selectedL3).then(setL4List);
+    } else {
+      setL4List([]);
+    }
+    // Reset child selections
+    setSelectedL4('');
+    setSelectedL5('');
+    setSelectedL6('');
+    setL5List([]);
+    setL6List([]);
+  }, [selectedL1, selectedL2, selectedL3]);
+
+  // Fetch L5 when L1, L2, L3, or L4 changes
+  useEffect(() => {
+    if (selectedL4) {
+      fetchL5Action(
+        selectedL1 || undefined,
+        selectedL2 || undefined,
+        selectedL3 || undefined,
+        selectedL4
+      ).then(setL5List);
+    } else {
+      setL5List([]);
+    }
+    // Reset child selections
+    setSelectedL5('');
+    setSelectedL6('');
+    setL6List([]);
+  }, [selectedL1, selectedL2, selectedL3, selectedL4]);
+
+  // Fetch L6 when L1, L2, L3, L4, or L5 changes
+  useEffect(() => {
+    if (selectedL5) {
+      fetchL6Action(
+        selectedL1 || undefined,
+        selectedL2 || undefined,
+        selectedL3 || undefined,
+        selectedL4 || undefined,
+        selectedL5
+      ).then(setL6List);
+    } else {
+      setL6List([]);
+    }
+    // Reset child selection
+    setSelectedL6('');
+  }, [selectedL1, selectedL2, selectedL3, selectedL4, selectedL5]);
 
   // Filter SKUs when selections change
   useEffect(() => {
