@@ -51,7 +51,7 @@ export default function QRGeneration() {
 
   const [sku, setSku] = useState('');
   const [qrType, setQrType] = useState('inner');
-  const [numberOfQRs, setNumberOfQRs] = useState('100');
+  const [numberOfQRs, setNumberOfQRs] = useState('');
   const [skus, setSkus] = useState<any[]>([]);
   const [filteredSkus, setFilteredSkus] = useState<any[]>([]);
 
@@ -230,6 +230,12 @@ export default function QRGeneration() {
       return;
     }
 
+    const quantity = parseInt(numberOfQRs, 10);
+    if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+      alert('Quantity must be between 1 and 10000');
+      return;
+    }
+
     setGenerating(true);
     try {
       const result = await generateQrCodeAction({
@@ -245,7 +251,7 @@ export default function QRGeneration() {
         // Reset form
         setSku('');
         setQrType('inner');
-        setNumberOfQRs('100');
+        setNumberOfQRs('');
       } else {
         alert('Error: ' + result.message);
       }
@@ -352,10 +358,21 @@ export default function QRGeneration() {
               <TextField
                 type="number"
                 label="Quantity"
+                placeholder="ENTER QUANTITY"
                 value={numberOfQRs}
-                onChange={(e) => setNumberOfQRs(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow empty or valid number within range
+                  if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 10000)) {
+                    setNumberOfQRs(value);
+                  }
+                }}
                 fullWidth
                 size="small"
+                inputProps={{
+                  min: 1,
+                  max: 10000
+                }}
               />
             </Box>
 
