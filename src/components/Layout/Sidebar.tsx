@@ -45,25 +45,25 @@ interface NavigationItem {
 
 const menuItems: NavigationItem[] = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-  { 
-    text: 'Masters & Config', 
-    icon: <Settings />, 
+  {
+    text: 'Masters & Config',
+    icon: <Settings />,
     path: '/masters-config',
-  
+
   },
   { text: 'Schemes & Campaigns', icon: <Campaign />, path: '/schemes-campaigns' },
   { text: 'QR Management', icon: <QrCode />, path: '/qr-management' },
   { text: 'Communication', icon: <Announcement />, path: '/communication' },
   { text: 'Finance & Compliance', icon: <AccountBalance />, path: '/finance-compliance' },
-  { text: 'Fraud Detection', icon: <Security />, path: '/fraud-detection' },
+  //{ text: 'Fraud Detection', icon: <Security />, path: '/fraud-detection' },
   { text: 'MIS & Analytics', icon: <Assessment />, path: '/mis-analytics' },
   { text: 'Role Management', icon: <AdminPanelSettings />, path: '/role-management' },
-  { text: 'Integrations', icon: <IntegrationInstructions />, path: '/integrations' },
-  { text: 'Reports', icon: <Report />, path: '/reports' },
-  { text: 'Process', icon: <Build />, path: '/process' },
+  //{ text: 'Integrations', icon: <IntegrationInstructions />, path: '/integrations' },
+  //{ text: 'Reports', icon: <Report />, path: '/reports' },
+  //{ text: 'Process', icon: <Build />, path: '/process' },
   { text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
   { text: 'Members', icon: <Group />, path: '/members' },
-  { text: 'Configuration', icon: <Tune />, path: '/configuration' }
+  //{ text: 'Configuration', icon: <Tune />, path: '/configuration' }
 ]
 
 interface SidebarProps {
@@ -77,8 +77,8 @@ export default function Sidebar({ currentPath }: SidebarProps) {
 
   const handleItemClick = (item: NavigationItem) => {
     if (item.children) {
-      setOpenItems(prev => 
-        prev.includes(item.text) 
+      setOpenItems(prev =>
+        prev.includes(item.text)
           ? prev.filter(i => i !== item.text)
           : [...prev, item.text]
       )
@@ -120,7 +120,7 @@ export default function Sidebar({ currentPath }: SidebarProps) {
                 )}
               </ListItemButton>
             </ListItem>
-            
+
             {item.children && (
               <Collapse in={openItems.includes(item.text)} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
@@ -149,9 +149,9 @@ export default function Sidebar({ currentPath }: SidebarProps) {
           </Box>
         ))}
       </List>
-      
+
       <Divider />
-      
+
       {session && (
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
