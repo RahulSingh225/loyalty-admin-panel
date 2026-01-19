@@ -1,6 +1,5 @@
-import { pgTable, foreignKey, serial, text, integer, jsonb, varchar, timestamp, numeric, unique, boolean, uniqueIndex, pgEnum } from "drizzle-orm/pg-core"
-import { sql, relations } from "drizzle-orm"
-import { userScopeMapping } from "../../drizzle/schema";
+import { pgTable, foreignKey, serial, text, integer, jsonb, varchar, timestamp, numeric, unique, boolean, uniqueIndex } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 
 
@@ -700,30 +699,30 @@ export const systemLogs = pgTable("system_logs", {
 	}),
 ]);
 
-// export const userScopeMapping = pgTable("user_scope_mapping", {
-// 	id: serial().primaryKey().notNull(),
-// 	userTypeId: integer("user_type_id"),
-// 	userId: integer("user_id"),
-// 	scopeType: varchar("scope_type", { length: 20 }).notNull(),
-// 	scopeLevelId: integer("scope_level_id").notNull(),
-// 	scopeEntityId: integer("scope_entity_id"),
-// 	accessType: varchar("access_type", { length: 20 }).default('specific').notNull(),
-// 	isActive: boolean("is_active").default(true).notNull(),
-// 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-// 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
-// }, (table) => [
-// 	uniqueIndex("user_scope_mapping_unique").using("btree", table.userTypeId.asc().nullsLast().op("int4_ops"), table.userId.asc().nullsLast().op("int4_ops"), table.scopeType.asc().nullsLast().op("int4_ops"), table.scopeLevelId.asc().nullsLast().op("int4_ops"), table.scopeEntityId.asc().nullsLast().op("text_ops")).where(sql`(is_active = true)`),
-// 	foreignKey({
-// 			columns: [table.userTypeId],
-// 			foreignColumns: [userTypeEntity.id],
-// 			name: "user_scope_mapping_user_type_id_fkey"
-// 		}).onDelete("cascade"),
-// 	foreignKey({
-// 			columns: [table.userId],
-// 			foreignColumns: [users.id],
-// 			name: "user_scope_mapping_user_id_fkey"
-// 		}).onDelete("cascade"),
-// ]);
+export const userScopeMapping = pgTable("user_scope_mapping", {
+	id: serial().primaryKey().notNull(),
+	userTypeId: integer("user_type_id"),
+	userId: integer("user_id"),
+	scopeType: varchar("scope_type", { length: 20 }).notNull(),
+	scopeLevelId: integer("scope_level_id").notNull(),
+	scopeEntityId: integer("scope_entity_id"),
+	accessType: varchar("access_type", { length: 20 }).default('specific').notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	uniqueIndex("user_scope_mapping_unique").using("btree", table.userTypeId.asc().nullsLast().op("int4_ops"), table.userId.asc().nullsLast().op("int4_ops"), table.scopeType.asc().nullsLast().op("int4_ops"), table.scopeLevelId.asc().nullsLast().op("int4_ops"), table.scopeEntityId.asc().nullsLast().op("text_ops")).where(sql`(is_active = true)`),
+	foreignKey({
+		columns: [table.userTypeId],
+		foreignColumns: [userTypeEntity.id],
+		name: "user_scope_mapping_user_type_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_scope_mapping_user_id_fkey"
+	}).onDelete("cascade"),
+]);
 
 export const participantSkuAccess = pgTable("participant_sku_access", {
 	id: serial().primaryKey().notNull(),
@@ -869,6 +868,26 @@ export const skuPointConfig = pgTable("sku_point_config", {
 	}),
 ]);
 
+export const skuPointRules = pgTable("sku_point_rules", {
+	id: serial().primaryKey(),
+	name: text().notNull(), // e.g. "Diwali Bonus - North Zone"
+	priority: integer().default(0), // High priority runs last (overrides others)
+	// Conditions (Nullable - NULL means "Any")
+	clientId: integer("client_id").notNull(),
+	locationEntityId: integer("location_entity_id"),
+	skuEntityId: integer("sku_entity_id"),
+	skuVariantId: integer("sku_variant_id"),
+	userTypeId: integer("user_type_id"),
+	// Action
+	actionType: varchar("action_type", { length: 20 }).notNull(), // 'FLAT_OVERRIDE', 'PERCENTAGE_ADD', 'FIXED_ADD'
+	actionValue: numeric("action_value").notNull(),
+	// Validity
+	isActive: boolean("is_active").default(true),
+	validFrom: timestamp("valid_from"),
+	validTo: timestamp("valid_to"),
+});
+
+
 export const locationEntityPincode = pgTable("location_entity_pincode", {
 	id: serial().primaryKey().notNull(),
 	entityId: integer("entity_id").notNull(),
@@ -974,14 +993,7 @@ export const pincodeMaster = pgTable("pincode_master", {
 	city: text(),
 	district: text(),
 	state: text(),
-	latitude: numeric({ precision: 10, scale: 7 }),
-	longitude: numeric({ precision: 10, scale: 7 }),
-	isActive: boolean("is_active").default(true),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	unique("pincode_master_pincode_key").on(table.pincode),
-]
-);
+});
 
 export const redemptionStatuses = pgTable("redemption_statuses", {
 	id: serial().primaryKey().notNull(),
@@ -1136,652 +1148,3 @@ export const userTypeLevelMaster = pgTable("user_type_level_master", {
 	}),
 ]);
 
-export const SkuMasterModel = pgTable("tbl_sku_master", {
-	skuId: serial("sku_id").primaryKey(),
-	skuCode: varchar("sku_code", { length: 255 }).notNull().unique(),
-	skuDescription: varchar("sku_description", { length: 255 }),
-	skuPoints: integer("sku_points").notNull(),
-	vertical: varchar("vertical", { length: 255 }).notNull(),
-	range: varchar("range", { length: 255 }).notNull(),
-	l1: integer("l1"),
-	l2: integer("l2"),
-	l3: integer("l3"),
-	l4: integer("l4"),
-	l5: integer("l5"),
-	l6: integer("l6"),
-	isSkuActive: boolean("is_sku_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const RandomKeysModel = pgTable("tbl_random_keys", {
-	randomKeyId: serial("random_key_id").primaryKey(),
-	randomKey: varchar("random_key", { length: 255 }).notNull().unique(),
-	status: boolean("status").notNull().default(false),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const InventoryModel = pgTable("tbl_inventory", {
-	inventoryId: serial("inventory_id").primaryKey(),
-	serialNumber: varchar("serial_number", { length: 255 }).notNull().unique(),
-	batchId: integer("batch_id").notNull(),
-	isActive: boolean("is_active").notNull().default(true),
-	isQrScanned: boolean("is_qr_scanned").notNull().default(false)
-});
-
-export const inventoryTypeEnum = pgEnum("inventory_type", ["inner", "outer"]);
-
-export const InventoryBatch = pgTable("tbl_inventory_batch", {
-	batchId: serial("batch_id").primaryKey(),
-	skuCode: varchar("sku_code", { length: 255 }).notNull(),
-	quantity: integer("quantity").notNull(),
-	type: inventoryTypeEnum("type").notNull(),
-	fileUrl: varchar("file_url", { length: 255 }),
-	isActive: boolean("is_active").notNull().default(true),
-	createdBy: integer("created_by"),
-	updatedBy: integer("updated_by"),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const SkuLevel1Master = pgTable("sku_level1_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const SkuLevel2Master = pgTable("sku_level2_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	l1Id: integer("l1_id")
-		.references(() => SkuLevel1Master.id),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const SkuLevel3Master = pgTable("sku_level3_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	l2Id: integer("l2_id")
-		.references(() => SkuLevel2Master.id),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const SkuLevel4Master = pgTable("sku_level4_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	l3Id: integer("l3_id")
-		.references(() => SkuLevel3Master.id),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const SkuLevel5Master = pgTable("sku_level5_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	l4Id: integer("l4_id")
-		.references(() => SkuLevel4Master.id),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const SkuLevel6Master = pgTable("sku_level6_master", {
-	id: serial("id").primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	l5Id: integer("l5_id")
-		.references(() => SkuLevel5Master.id),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const ticketsRelations = relations(tickets, ({ one }) => ({
-	type: one(ticketTypes, {
-		fields: [tickets.typeId],
-		references: [ticketTypes.id]
-	}),
-	status: one(ticketStatuses, {
-		fields: [tickets.statusId],
-		references: [ticketStatuses.id]
-	}),
-}));
-
-export const ticketTypesRelations = relations(ticketTypes, ({ many }) => ({
-	tickets: many(tickets),
-}));
-
-export const ticketStatusesRelations = relations(ticketStatuses, ({ many }) => ({
-	tickets: many(tickets),
-}));
-
-export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [auditLogs.changedBy],
-		references: [users.id]
-	}),
-}));
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-	auditLogs: many(auditLogs),
-	counterSalesTransactionLogs: many(counterSalesTransactionLogs),
-	electricianLedgers: many(electricianLedger),
-	qrCodes: many(qrCodes),
-	redemptions_userId: many(redemptions, {
-		relationName: "redemptions_userId_users_id"
-	}),
-	redemptions_approvedBy: many(redemptions, {
-		relationName: "redemptions_approvedBy_users_id"
-	}),
-	retailers: many(retailers),
-	userTypeEntity: one(userTypeEntity, {
-		fields: [users.roleId],
-		references: [userTypeEntity.id]
-	}),
-	user: one(users, {
-		fields: [users.referrerId],
-		references: [users.id],
-		relationName: "users_referrerId_users_id"
-	}),
-	users: many(users, {
-		relationName: "users_referrerId_users_id"
-	}),
-	onboardingType: one(onboardingTypes, {
-		fields: [users.onboardingTypeId],
-		references: [onboardingTypes.id]
-	}),
-	approvalStatus: one(approvalStatuses, {
-		fields: [users.approvalStatusId],
-		references: [approvalStatuses.id]
-	}),
-	language: one(languages, {
-		fields: [users.languageId],
-		references: [languages.id]
-	}),
-	counterSales_attachedRetailerId: many(counterSales, {
-		relationName: "counterSales_attachedRetailerId_users_id"
-	}),
-	counterSales_userId: many(counterSales, {
-		relationName: "counterSales_userId_users_id"
-	}),
-	appConfigs: many(appConfigs),
-	counterSalesLedgers: many(counterSalesLedger),
-	counterSalesTransactions: many(counterSalesTransactions),
-	electricianTransactionLogs: many(electricianTransactionLogs),
-	electricianTransactions: many(electricianTransactions),
-	electricians: many(electricians),
-	eventLogs: many(eventLogs),
-	notifications: many(notifications),
-	referrals_referrerId: many(referrals, {
-		relationName: "referrals_referrerId_users_id"
-	}),
-	referrals_referredId: many(referrals, {
-		relationName: "referrals_referredId_users_id"
-	}),
-	retailerLedgers: many(retailerLedger),
-	retailerTransactionLogs: many(retailerTransactionLogs),
-	retailerTransactions: many(retailerTransactions),
-	systemLogs: many(systemLogs),
-	userScopeMappings: many(userScopeMapping),
-	participantSkuAccesses: many(participantSkuAccess),
-}));
-
-export const counterSalesTransactionLogsRelations = relations(counterSalesTransactionLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [counterSalesTransactionLogs.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [counterSalesTransactionLogs.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [counterSalesTransactionLogs.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const earningTypesRelations = relations(earningTypes, ({ many }) => ({
-	counterSalesTransactionLogs: many(counterSalesTransactionLogs),
-	counterSalesTransactions: many(counterSalesTransactions),
-	electricianTransactionLogs: many(electricianTransactionLogs),
-	electricianTransactions: many(electricianTransactions),
-	retailerTransactionLogs: many(retailerTransactionLogs),
-	retailerTransactions: many(retailerTransactions),
-}));
-
-export const schemesRelations = relations(schemes, ({ one, many }) => ({
-	counterSalesTransactionLogs: many(counterSalesTransactionLogs),
-	redemptions: many(redemptions),
-	counterSalesTransactions: many(counterSalesTransactions),
-	electricianTransactionLogs: many(electricianTransactionLogs),
-	electricianTransactions: many(electricianTransactions),
-	retailerTransactionLogs: many(retailerTransactionLogs),
-	retailerTransactions: many(retailerTransactions),
-	schemeType: one(schemeTypes, {
-		fields: [schemes.schemeType],
-		references: [schemeTypes.id]
-	}),
-}));
-
-export const electricianLedgerRelations = relations(electricianLedger, ({ one }) => ({
-	user: one(users, {
-		fields: [electricianLedger.userId],
-		references: [users.id]
-	}),
-}));
-
-export const qrCodesRelations = relations(qrCodes, ({ one, many }) => ({
-	qrType: one(qrTypes, {
-		fields: [qrCodes.typeId],
-		references: [qrTypes.id]
-	}),
-	qrCode: one(qrCodes, {
-		fields: [qrCodes.parentQrId],
-		references: [qrCodes.id],
-		relationName: "qrCodes_parentQrId_qrCodes_id"
-	}),
-	qrCodes: many(qrCodes, {
-		relationName: "qrCodes_parentQrId_qrCodes_id"
-	}),
-	user: one(users, {
-		fields: [qrCodes.scannedBy],
-		references: [users.id]
-	}),
-}));
-
-export const qrTypesRelations = relations(qrTypes, ({ many }) => ({
-	qrCodes: many(qrCodes),
-}));
-
-export const redemptionsRelations = relations(redemptions, ({ one }) => ({
-	user_userId: one(users, {
-		fields: [redemptions.userId],
-		references: [users.id],
-		relationName: "redemptions_userId_users_id"
-	}),
-	redemptionChannel: one(redemptionChannels, {
-		fields: [redemptions.channelId],
-		references: [redemptionChannels.id]
-	}),
-	redemptionStatus: one(redemptionStatuses, {
-		fields: [redemptions.status],
-		references: [redemptionStatuses.id]
-	}),
-	scheme: one(schemes, {
-		fields: [redemptions.schemeId],
-		references: [schemes.id]
-	}),
-	user_approvedBy: one(users, {
-		fields: [redemptions.approvedBy],
-		references: [users.id],
-		relationName: "redemptions_approvedBy_users_id"
-	}),
-}));
-
-export const redemptionChannelsRelations = relations(redemptionChannels, ({ many }) => ({
-	redemptions: many(redemptions),
-}));
-
-export const redemptionStatusesRelations = relations(redemptionStatuses, ({ many }) => ({
-	redemptions: many(redemptions),
-}));
-
-export const retailersRelations = relations(retailers, ({ one }) => ({
-	user: one(users, {
-		fields: [retailers.userId],
-		references: [users.id]
-	}),
-}));
-
-export const userTypeEntityRelations = relations(userTypeEntity, ({ one, many }) => ({
-	users: many(users),
-	userScopeMappings: many(userScopeMapping),
-	skuPointConfigs: many(skuPointConfig),
-	userTypeLevelMaster: one(userTypeLevelMaster, {
-		fields: [userTypeEntity.levelId],
-		references: [userTypeLevelMaster.id]
-	}),
-	userTypeEntity: one(userTypeEntity, {
-		fields: [userTypeEntity.parentTypeId],
-		references: [userTypeEntity.id],
-		relationName: "userTypeEntity_parentTypeId_userTypeEntity_id"
-	}),
-	userTypeEntities: many(userTypeEntity, {
-		relationName: "userTypeEntity_parentTypeId_userTypeEntity_id"
-	}),
-}));
-
-export const onboardingTypesRelations = relations(onboardingTypes, ({ many }) => ({
-	users: many(users),
-}));
-
-export const approvalStatusesRelations = relations(approvalStatuses, ({ many }) => ({
-	users: many(users),
-}));
-
-export const languagesRelations = relations(languages, ({ many }) => ({
-	users: many(users),
-}));
-
-export const campaignsRelations = relations(campaigns, ({ one }) => ({
-	schemeType: one(schemeTypes, {
-		fields: [campaigns.schemeType],
-		references: [schemeTypes.id]
-	}),
-}));
-
-export const schemeTypesRelations = relations(schemeTypes, ({ many }) => ({
-	campaigns: many(campaigns),
-	schemes: many(schemes),
-}));
-
-export const counterSalesRelations = relations(counterSales, ({ one }) => ({
-	user_attachedRetailerId: one(users, {
-		fields: [counterSales.attachedRetailerId],
-		references: [users.id],
-		relationName: "counterSales_attachedRetailerId_users_id"
-	}),
-	user_userId: one(users, {
-		fields: [counterSales.userId],
-		references: [users.id],
-		relationName: "counterSales_userId_users_id"
-	}),
-}));
-
-export const appConfigsRelations = relations(appConfigs, ({ one }) => ({
-	user: one(users, {
-		fields: [appConfigs.updatedBy],
-		references: [users.id]
-	}),
-}));
-
-export const counterSalesLedgerRelations = relations(counterSalesLedger, ({ one }) => ({
-	user: one(users, {
-		fields: [counterSalesLedger.userId],
-		references: [users.id]
-	}),
-}));
-
-export const counterSalesTransactionsRelations = relations(counterSalesTransactions, ({ one }) => ({
-	user: one(users, {
-		fields: [counterSalesTransactions.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [counterSalesTransactions.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [counterSalesTransactions.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const electricianTransactionLogsRelations = relations(electricianTransactionLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [electricianTransactionLogs.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [electricianTransactionLogs.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [electricianTransactionLogs.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const electricianTransactionsRelations = relations(electricianTransactions, ({ one }) => ({
-	user: one(users, {
-		fields: [electricianTransactions.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [electricianTransactions.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [electricianTransactions.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const electriciansRelations = relations(electricians, ({ one }) => ({
-	user: one(users, {
-		fields: [electricians.userId],
-		references: [users.id]
-	}),
-}));
-
-export const eventLogsRelations = relations(eventLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [eventLogs.userId],
-		references: [users.id]
-	}),
-	eventMaster: one(eventMaster, {
-		fields: [eventLogs.eventId],
-		references: [eventMaster.id]
-	}),
-}));
-
-export const eventMasterRelations = relations(eventMaster, ({ many }) => ({
-	eventLogs: many(eventLogs),
-}));
-
-export const notificationsRelations = relations(notifications, ({ one }) => ({
-	user: one(users, {
-		fields: [notifications.userId],
-		references: [users.id]
-	}),
-}));
-
-export const referralsRelations = relations(referrals, ({ one }) => ({
-	user_referrerId: one(users, {
-		fields: [referrals.referrerId],
-		references: [users.id],
-		relationName: "referrals_referrerId_users_id"
-	}),
-	user_referredId: one(users, {
-		fields: [referrals.referredId],
-		references: [users.id],
-		relationName: "referrals_referredId_users_id"
-	}),
-}));
-
-export const retailerLedgerRelations = relations(retailerLedger, ({ one }) => ({
-	user: one(users, {
-		fields: [retailerLedger.userId],
-		references: [users.id]
-	}),
-}));
-
-export const retailerTransactionLogsRelations = relations(retailerTransactionLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [retailerTransactionLogs.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [retailerTransactionLogs.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [retailerTransactionLogs.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const retailerTransactionsRelations = relations(retailerTransactions, ({ one }) => ({
-	user: one(users, {
-		fields: [retailerTransactions.userId],
-		references: [users.id]
-	}),
-	earningType: one(earningTypes, {
-		fields: [retailerTransactions.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [retailerTransactions.schemeId],
-		references: [schemes.id]
-	}),
-}));
-
-export const systemLogsRelations = relations(systemLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [systemLogs.userId],
-		references: [users.id]
-	}),
-}));
-
-export const userScopeMappingRelations = relations(userScopeMapping, ({ one }) => ({
-	userTypeEntity: one(userTypeEntity, {
-		fields: [userScopeMapping.userTypeId],
-		references: [userTypeEntity.id]
-	}),
-	user: one(users, {
-		fields: [userScopeMapping.userId],
-		references: [users.id]
-	}),
-}));
-
-export const participantSkuAccessRelations = relations(participantSkuAccess, ({ one }) => ({
-	user: one(users, {
-		fields: [participantSkuAccess.userId],
-		references: [users.id]
-	}),
-	skuLevelMaster: one(skuLevelMaster, {
-		fields: [participantSkuAccess.skuLevelId],
-		references: [skuLevelMaster.id]
-	}),
-	skuEntity: one(skuEntity, {
-		fields: [participantSkuAccess.skuEntityId],
-		references: [skuEntity.id]
-	}),
-}));
-
-export const skuLevelMasterRelations = relations(skuLevelMaster, ({ one, many }) => ({
-	participantSkuAccesses: many(participantSkuAccess),
-	skuEntities: many(skuEntity),
-	client: one(client, {
-		fields: [skuLevelMaster.clientId],
-		references: [client.id]
-	}),
-}));
-
-export const skuEntityRelations = relations(skuEntity, ({ one, many }) => ({
-	participantSkuAccesses: many(participantSkuAccess),
-	client: one(client, {
-		fields: [skuEntity.clientId],
-		references: [client.id]
-	}),
-	skuLevelMaster: one(skuLevelMaster, {
-		fields: [skuEntity.levelId],
-		references: [skuLevelMaster.id]
-	}),
-	skuEntity: one(skuEntity, {
-		fields: [skuEntity.parentEntityId],
-		references: [skuEntity.id],
-		relationName: "skuEntity_parentEntityId_skuEntity_id"
-	}),
-	skuEntities: many(skuEntity, {
-		relationName: "skuEntity_parentEntityId_skuEntity_id"
-	}),
-	skuVariants: many(skuVariant),
-}));
-
-export const locationEntityRelations = relations(locationEntity, ({ one, many }) => ({
-	locationLevelMaster: one(locationLevelMaster, {
-		fields: [locationEntity.levelId],
-		references: [locationLevelMaster.id]
-	}),
-	locationEntity: one(locationEntity, {
-		fields: [locationEntity.parentEntityId],
-		references: [locationEntity.id],
-		relationName: "locationEntity_parentEntityId_locationEntity_id"
-	}),
-	locationEntities: many(locationEntity, {
-		relationName: "locationEntity_parentEntityId_locationEntity_id"
-	}),
-	client: one(client, {
-		fields: [locationEntity.clientId],
-		references: [client.id]
-	}),
-	locationEntityPincodes: many(locationEntityPincode),
-}));
-
-export const locationLevelMasterRelations = relations(locationLevelMaster, ({ one, many }) => ({
-	locationEntities: many(locationEntity),
-	client: one(client, {
-		fields: [locationLevelMaster.clientId],
-		references: [client.id]
-	}),
-}));
-
-export const clientRelations = relations(client, ({ many }) => ({
-	locationEntities: many(locationEntity),
-	locationLevelMasters: many(locationLevelMaster),
-	skuEntities: many(skuEntity),
-	skuLevelMasters: many(skuLevelMaster),
-	skuPointConfigs: many(skuPointConfig),
-}));
-
-export const skuPointConfigRelations = relations(skuPointConfig, ({ one }) => ({
-	client: one(client, {
-		fields: [skuPointConfig.clientId],
-		references: [client.id]
-	}),
-	skuVariant: one(skuVariant, {
-		fields: [skuPointConfig.skuVariantId],
-		references: [skuVariant.id]
-	}),
-	userTypeEntity: one(userTypeEntity, {
-		fields: [skuPointConfig.userTypeId],
-		references: [userTypeEntity.id]
-	}),
-}));
-
-export const skuVariantRelations = relations(skuVariant, ({ one, many }) => ({
-	skuPointConfigs: many(skuPointConfig),
-	skuEntity: one(skuEntity, {
-		fields: [skuVariant.skuEntityId],
-		references: [skuEntity.id]
-	}),
-}));
-
-export const locationEntityPincodeRelations = relations(locationEntityPincode, ({ one }) => ({
-	locationEntity: one(locationEntity, {
-		fields: [locationEntityPincode.entityId],
-		references: [locationEntity.id]
-	}),
-	pincodeMaster: one(pincodeMaster, {
-		fields: [locationEntityPincode.pincodeId],
-		references: [pincodeMaster.id]
-	}),
-}));
-
-export const pincodeMasterRelations = relations(pincodeMaster, ({ many }) => ({
-	locationEntityPincodes: many(locationEntityPincode),
-}));
-
-export const creativesRelations = relations(creatives, ({ one }) => ({
-	creativesType: one(creativesTypes, {
-		fields: [creatives.typeId],
-		references: [creativesTypes.id]
-	}),
-}));
-
-export const creativesTypesRelations = relations(creativesTypes, ({ many }) => ({
-	creatives: many(creatives),
-}));
-
-export const userTypeLevelMasterRelations = relations(userTypeLevelMaster, ({ one, many }) => ({
-	userTypeEntities: many(userTypeEntity),
-	userTypeLevelMaster: one(userTypeLevelMaster, {
-		fields: [userTypeLevelMaster.parentLevelId],
-		references: [userTypeLevelMaster.id],
-		relationName: "userTypeLevelMaster_parentLevelId_userTypeLevelMaster_id"
-	}),
-	userTypeLevelMasters: many(userTypeLevelMaster, {
-		relationName: "userTypeLevelMaster_parentLevelId_userTypeLevelMaster_id"
-	}),
-}));

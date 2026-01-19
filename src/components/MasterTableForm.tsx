@@ -56,11 +56,11 @@ interface MasterTableFormProps {
 
 export function MasterTableForm({ title, tableSchema, data, onChange, masterData }: MasterTableFormProps) {
   const columns = getTableColumns(tableSchema);
-  
+
   // Filter out columns that are auto-managed (like primary keys, timestamps)
-  const editableColumns = columns.filter(col => 
-    !col.primary && 
-    col.name !== 'createdAt' && 
+  const editableColumns = columns.filter(col =>
+    !col.primary &&
+    col.name !== 'createdAt' &&
     col.name !== 'updatedAt' &&
     col.default !== sql`CURRENT_TIMESTAMP`
   );
