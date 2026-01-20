@@ -1,17 +1,22 @@
+
 import { NextResponse } from 'next/server';
 import { Broker } from '@/server/rabbitMq/broker';
 import { GenerateQrPayload, CustomError } from '@/lib/types';
 import { customValidators } from '@/lib/utils/custom-validators';
-import { skuMasterRepository, inventoryBatchRepository } from '@/server/repositories';
+import { inventoryBatchRepository } from '@/server/repositories';
+import { skuLevelRepository } from '@/server/repositories/sku-level-repository';
 import { fileMiddleware } from '@/server/middlewares/file-middleware';
 
 class QrService {
     async generateQr(req: GenerateQrPayload) {
         try {
             const payload = new GenerateQrPayload(req); // Validate using constructor
-            const doesSkuExist = await skuMasterRepository.doesSkuExist(payload.skuCode);
+
+            // Replaced skuMasterRepository check with skuLevelRepository check
+            const doesSkuExist = await skuLevelRepository.doesVariantExist(payload.skuCode);
+
             if (!doesSkuExist) {
-                return { success: false, message: 'SKU not present', status: 404 };
+                return { success: false, message: 'SKU (Variant) not present', status: 404 };
             }
             const brokerObject = new Broker();
             await brokerObject.publish({

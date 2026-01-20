@@ -1,3 +1,4 @@
+
 'use server';
 
 import { skuLevelService } from "@/server/services/sku-level.service";
@@ -52,6 +53,15 @@ export async function fetchL6Action(l1Id?: number, l2Id?: number, l3Id?: number,
         return await skuLevelService.getL6(l1Id, l2Id, l3Id, l4Id, l5Id);
     } catch (error) {
         console.error("Failed to fetch L6:", error);
+        return [];
+    }
+}
+
+export async function fetchVariantsAction(skuEntityId?: number) {
+    try {
+        return await skuLevelService.getVariants(skuEntityId);
+    } catch (error) {
+        console.error("Failed to fetch variants:", error);
         return [];
     }
 }

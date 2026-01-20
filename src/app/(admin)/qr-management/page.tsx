@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,7 +23,7 @@ import {
   TablePagination
 } from '@mui/material';
 
-import { fetchSkus } from '@/app/actions/sku.actions';
+// Removed fetchSkus as we now use fetchVariantsAction
 import { generateQrCodeAction, fetchQrHistory, fetchQrFileAction } from '@/app/actions/qr.actions';
 import {
   fetchL1Action,
@@ -30,7 +31,8 @@ import {
   fetchL3Action,
   fetchL4Action,
   fetchL5Action,
-  fetchL6Action
+  fetchL6Action,
+  fetchVariantsAction
 } from '@/app/actions/sku-level.actions';
 
 interface QRBatch {
@@ -49,11 +51,12 @@ export default function QRGeneration() {
     }
   });
 
-  const [sku, setSku] = useState('');
+  const [sku, setSku] = useState(''); // This will store the variant name
   const [qrType, setQrType] = useState('inner');
   const [numberOfQRs, setNumberOfQRs] = useState('');
-  const [skus, setSkus] = useState<any[]>([]);
-  const [filteredSkus, setFilteredSkus] = useState<any[]>([]);
+
+  // New state for variants
+  const [variants, setVariants] = useState<any[]>([]);
 
   // Level State
   const [l1List, setL1List] = useState<any[]>([]);
@@ -70,21 +73,8 @@ export default function QRGeneration() {
   const [selectedL5, setSelectedL5] = useState<number | ''>('');
   const [selectedL6, setSelectedL6] = useState<number | ''>('');
 
-  // Fetch SKUs on mount
+  // Fetch L1 on mount
   useEffect(() => {
-    const getSkus = async () => {
-      try {
-        const data = await fetchSkus();
-        console.log(data)
-        setSkus(data);
-        setFilteredSkus(data);
-      } catch (error) {
-        console.error('Failed to fetch SKUs', error);
-      }
-    };
-    getSkus();
-
-    // Fetch L1 on mount
     fetchL1Action().then(setL1List);
   }, []);
 
@@ -105,6 +95,8 @@ export default function QRGeneration() {
     setL4List([]);
     setL5List([]);
     setL6List([]);
+    setVariants([]);
+    setSku('');
   }, [selectedL1]);
 
   // Fetch L3 when L1 or L2 changes
@@ -122,6 +114,8 @@ export default function QRGeneration() {
     setL4List([]);
     setL5List([]);
     setL6List([]);
+    setVariants([]);
+    setSku('');
   }, [selectedL1, selectedL2]);
 
   // Fetch L4 when L1, L2, or L3 changes
@@ -137,6 +131,8 @@ export default function QRGeneration() {
     setSelectedL6('');
     setL5List([]);
     setL6List([]);
+    setVariants([]);
+    setSku('');
   }, [selectedL1, selectedL2, selectedL3]);
 
   // Fetch L5 when L1, L2, L3, or L4 changes
@@ -155,6 +151,8 @@ export default function QRGeneration() {
     setSelectedL5('');
     setSelectedL6('');
     setL6List([]);
+    setVariants([]);
+    setSku('');
   }, [selectedL1, selectedL2, selectedL3, selectedL4]);
 
   // Fetch L6 when L1, L2, L3, L4, or L5 changes
@@ -172,19 +170,20 @@ export default function QRGeneration() {
     }
     // Reset child selection
     setSelectedL6('');
+    setVariants([]);
+    setSku('');
   }, [selectedL1, selectedL2, selectedL3, selectedL4, selectedL5]);
 
-  // Filter SKUs when selections change
+  // Fetch Variants when L6 changes
   useEffect(() => {
-    let result = skus;
-    if (selectedL1) result = result.filter(s => s.l1 === selectedL1);
-    if (selectedL2) result = result.filter(s => s.l2 === selectedL2);
-    if (selectedL3) result = result.filter(s => s.l3 === selectedL3);
-    if (selectedL4) result = result.filter(s => s.l4 === selectedL4);
-    if (selectedL5) result = result.filter(s => s.l5 === selectedL5);
-    if (selectedL6) result = result.filter(s => s.l6 === selectedL6);
-    setFilteredSkus(result);
-  }, [skus, selectedL1, selectedL2, selectedL3, selectedL4, selectedL5, selectedL6]);
+    if (selectedL6) {
+      fetchVariantsAction(selectedL6).then(setVariants);
+    } else {
+      setVariants([]);
+    }
+    setSku('');
+  }, [selectedL6]);
+
 
   const [batches, setBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
@@ -225,6 +224,7 @@ export default function QRGeneration() {
   const [generating, setGenerating] = useState(false);
 
   const handleGenerate = async () => {
+    // sku here is the variant name (string)
     if (!sku || !qrType || !numberOfQRs) {
       alert('Please fill all fields');
       return;
@@ -239,7 +239,7 @@ export default function QRGeneration() {
     setGenerating(true);
     try {
       const result = await generateQrCodeAction({
-        skuCode: sku,
+        skuCode: sku, // Passing variant name as skuCode
         type: qrType as 'inner' | 'outer',
         quantity: parseInt(numberOfQRs, 10),
       });
@@ -284,13 +284,6 @@ export default function QRGeneration() {
 
   return (
     <Box>
-      {/* <Typography variant="h4" gutterBottom>
-        QR Generation
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Generate and manage QR codes for your inventory
-      </Typography> */}
-
       <Box sx={{ display: 'grid', gap: 3, marginTop: 3 }}>
         {/* Generate QR Codes Section */}
         <Card>
@@ -328,16 +321,17 @@ export default function QRGeneration() {
 
               <TextField
                 select
-                label="SKU"
+                label="SKU Variant"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
                 fullWidth
                 size="small"
+                disabled={!selectedL6 || variants.length === 0}
               >
-                <MenuItem value="">-- Select SKU --</MenuItem>
-                {filteredSkus.map((item: any) => (
-                  <MenuItem key={item.skuId} value={item.skuCode}>
-                    {item.skuCode}
+                <MenuItem value="">-- Select Variant --</MenuItem>
+                {variants.map((item: any) => (
+                  <MenuItem key={item.id} value={item.name}>
+                    {item.name} {item.packSize ? `(${item.packSize})` : ''}
                   </MenuItem>
                 ))}
               </TextField>
@@ -480,8 +474,6 @@ export default function QRGeneration() {
             />
           </CardContent>
         </Card>
-
-
       </Box>
     </Box>
   );
