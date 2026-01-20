@@ -31,7 +31,7 @@ import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, T
 import { Bar, Pie } from 'react-chartjs-2';
 import { ChevronDown, ChevronRight, Download, Upload, Edit, Delete } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getMastersDataAction } from '@/actions/masters-actions';
+import { getMastersDataAction, type SkuNode } from '@/actions/masters-actions';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -40,68 +40,54 @@ function TabPanel(props: { children?: React.ReactNode; index: number; value: num
     return value === index ? <>{children}</> : null;
 }
 
-function TreeView() {
+function TreeView({ data }: { data: SkuNode[] }) {
     const [open, setOpen] = useState<{ [key: string]: boolean }>({});
 
     const toggle = (key: string) => setOpen((p) => ({ ...p, [key]: !p[key] }));
 
-    const Node = ({
-        label,
-        icon,
-        badge,
-        children,
-        path,
-    }: {
-        label: string;
-        icon: React.ReactNode;
-        badge?: string;
-        children?: React.ReactNode;
-        path: string;
-    }) => (
-        <li>
-            <div
-                className="flex items-center py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                onClick={() => children && toggle(path)}
-            >
-                {children ? (
-                    <span className="mr-1">
-                        {open[path] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </span>
-                ) : (
-                    <span className="w-5" />
-                )}
-                {icon}
-                <span className="ml-2">{label}</span>
-                {badge && (
+    const RenderNode = ({ node, path }: { node: SkuNode; path: string }) => {
+        const hasChildren = node.children && node.children.length > 0;
+        const icon = hasChildren ? (
+            <i className="fas fa-folder text-blue-500 mr-2" />
+        ) : (
+            <i className="fas fa-file text-gray-500 mr-2" />
+        );
+
+        return (
+            <li>
+                <div
+                    className="flex items-center py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                    onClick={() => hasChildren && toggle(path)}
+                >
+                    {hasChildren ? (
+                        <span className="mr-1">
+                            {open[path] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </span>
+                    ) : (
+                        <span className="w-5" />
+                    )}
+                    {icon}
+                    <span className="ml-2">{node.label}</span>
                     <span className="ml-auto mr-2">
-                        <Chip label={badge} size="small" color="primary" />
+                        <Chip label={node.levelName} size="small" color="primary" variant="outlined" />
                     </span>
+                </div>
+                {hasChildren && open[path] && (
+                    <ul className="ml-6">
+                        {node.children!.map((child) => (
+                            <RenderNode key={child.id} node={child} path={`${path}-${child.id}`} />
+                        ))}
+                    </ul>
                 )}
-            </div>
-            {children && open[path] && <ul className="ml-6">{children}</ul>}
-        </li>
-    );
+            </li>
+        );
+    };
 
     return (
         <ul className="space-y-1">
-            <Node label="Electrical Products" icon={<i className="fas fa-folder text-blue-500 mr-2" />} badge="Category" path="ep">
-                <Node label="Wires & Cables" icon={<i className="fas fa-folder text-blue-500 mr-2" />} badge="Sub-Category" path="ep-wc">
-                    <Node label="Household Wires" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU Group" path="ep-wc-hw">
-                        <Node label="FR Wire 1.5mm" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU" path="ep-wc-hw-1" />
-                        <Node label="FR Wire 2.5mm" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU" path="ep-wc-hw-2" />
-                    </Node>
-                    <Node label="Industrial Wires" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU Group" path="ep-wc-iw">
-                        <Node label="Industrial Cable 10mm" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU" path="ep-wc-iw-1" />
-                    </Node>
-                </Node>
-                <Node label="Switches & Sockets" icon={<i className="fas fa-folder text-blue-500 mr-2" />} badge="Sub-Category" path="ep-ss">
-                    <Node label="Modular Switches" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU Group" path="ep-ss-ms" />
-                </Node>
-            </Node>
-
-            <Node label="Lighting Products" icon={<i className="fas fa-folder text-blue-500 mr-2" />} badge="Category" path="lp">
-                <Node label="LED Bulbs" icon={<i className="fas fa-file text-gray-500 mr-2" />} badge="SKU Group" path="lp-led" />
-            </Node>
+            {data.map((node) => (
+                <RenderNode key={node.id} node={node} path={node.id} />
+            ))}
         </ul>
     );
 }
@@ -163,7 +149,7 @@ export default function MastersClient() {
                                     {stakeholderTypes.map((row) => (
                                         <TableRow key={row.id}>
                                             <TableCell>{row.id}</TableCell>
-                                            <TableCell>{row.name}</TableCell>
+                                            <TableCell>{row.code || row.name}</TableCell>
                                             <TableCell>{row.desc}</TableCell>
                                             <TableCell>{row.mult}</TableCell>
                                             <TableCell>
@@ -290,7 +276,7 @@ export default function MastersClient() {
                             }
                         />
                         <CardContent>
-                            <TreeView />
+                            <TreeView data={data?.skuHierarchy || []} />
                         </CardContent>
                     </Card>
 
@@ -342,11 +328,11 @@ export default function MastersClient() {
                                 <div className="h-64">
                                     <Bar
                                         data={{
-                                            labels: ['FR Wire 1.5mm', 'Industrial Cable 10mm', 'LED Bulb 9W', 'Modular Switch 2-Way', 'FR Wire 2.5mm'],
+                                            labels: (data?.topSkus || []).map(s => s.name),
                                             datasets: [
                                                 {
                                                     label: 'Scans',
-                                                    data: [1245, 987, 756, 634, 512],
+                                                    data: (data?.topSkus || []).map(s => s.scans),
                                                     backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'],
                                                     borderRadius: 5,
                                                 },
@@ -360,20 +346,16 @@ export default function MastersClient() {
                                     />
                                 </div>
                                 <div className="mt-4 space-y-2">
-                                    {[
-                                        { name: 'FR Wire 1.5mm', scans: 1245, change: '+12.5%' },
-                                        { name: 'Industrial Cable 10mm', scans: 987, change: '+8.3%' },
-                                        { name: 'LED Bulb 9W', scans: 756, change: '-2.1%' },
-                                    ].map((i) => (
+                                    {(data?.topSkus || []).map((i) => (
                                         <div key={i.name} className="flex justify-between items-center">
                                             <div>
                                                 <p className="font-medium text-sm">{i.name}</p>
-                                                <p className="text-xs text-gray-500">Electrical Products &gt; Wires &amp; Cables</p>
+                                                <p className="text-xs text-gray-500">{i.category}</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="font-medium text-sm">{i.scans} scans</p>
-                                                <p className={`text-xs ${i.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {i.change}
+                                                <p className="text-xs text-green-600">
+                                                    Top Performing
                                                 </p>
                                             </div>
                                         </div>
@@ -408,10 +390,11 @@ export default function MastersClient() {
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>Rule ID</TableCell>
-                                        <TableCell>Stakeholder Type</TableCell>
-                                        <TableCell>SKU Category</TableCell>
+                                        <TableCell>Type</TableCell>
+                                        <TableCell>Stakeholder</TableCell>
+                                        <TableCell>SKU/Category</TableCell>
                                         <TableCell>Base Points</TableCell>
-                                        <TableCell>Multiplier</TableCell>
+                                        <TableCell>Adjustment</TableCell>
                                         <TableCell>Effective From</TableCell>
                                         <TableCell>Status</TableCell>
                                         <TableCell>Actions</TableCell>
@@ -421,6 +404,14 @@ export default function MastersClient() {
                                     {pointsMatrix.map((r) => (
                                         <TableRow key={r.id}>
                                             <TableCell>{r.id}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={r.ruleType}
+                                                    size="small"
+                                                    color={r.ruleType === 'Override' ? 'secondary' : 'default'}
+                                                    variant="outlined"
+                                                />
+                                            </TableCell>
                                             <TableCell>{r.stakeholder}</TableCell>
                                             <TableCell>{r.category}</TableCell>
                                             <TableCell>{r.base}</TableCell>
