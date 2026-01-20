@@ -944,6 +944,25 @@ export const skuPointConfig = pgTable("sku_point_config", {
 	}),
 ]);
 
+export const skuPointRules = pgTable("sku_point_rules", {
+	id: serial().primaryKey(),
+	name: text().notNull(), // e.g. "Diwali Bonus - North Zone"
+	priority: integer().default(0), // High priority runs last (overrides others)
+	// Conditions (Nullable - NULL means "Any")
+	clientId: integer("client_id").notNull(),
+	locationEntityId: integer("location_entity_id"),
+	skuEntityId: integer("sku_entity_id"),
+	skuVariantId: integer("sku_variant_id"),
+	userTypeId: integer("user_type_id"),
+	// Action
+	actionType: varchar("action_type", { length: 20 }).notNull(), // 'FLAT_OVERRIDE', 'PERCENTAGE_ADD', 'FIXED_ADD'
+	actionValue: numeric("action_value").notNull(),
+	// Validity
+	isActive: boolean("is_active").default(true),
+	validFrom: timestamp("valid_from"),
+	validTo: timestamp("valid_to"),
+});
+
 export const tdsRecords = pgTable("tds_records", {
 	id: serial().primaryKey().notNull(),
 	userId: integer("user_id").notNull(),

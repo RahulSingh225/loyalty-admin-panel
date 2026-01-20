@@ -1,5 +1,5 @@
 import { db } from "@/db/index";
-import { InventoryBatch } from "@/db/schema";
+import { tblInventoryBatch as inventoryBatch } from "@/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { CustomError } from "../../types";
 
@@ -18,12 +18,12 @@ class InventoryBatchRepository {
             const offset = (page) * limit;
 
             return await db.transaction(async (tx) => {
-                const totalResult = await tx.select({ count: sql<number>`count(*)` }).from(InventoryBatch);
+                const totalResult = await tx.select({ count: sql<number>`count(*)` }).from(inventoryBatch);
                 const total = Number(totalResult[0]?.count || 0);
 
                 const batches = await tx.select()
-                    .from(InventoryBatch)
-                    .orderBy(desc(InventoryBatch.createdAt))
+                    .from(inventoryBatch)
+                    .orderBy(desc(inventoryBatch.createdAt))
                     .limit(limit)
                     .offset(offset);
 
@@ -39,8 +39,8 @@ class InventoryBatchRepository {
         try {
             const result = await db
                 .select()
-                .from(InventoryBatch)
-                .where(eq(InventoryBatch.batchId, batchId))
+                .from(inventoryBatch)
+                .where(eq(inventoryBatch.batchId, batchId))
                 .limit(1);
 
             return result.length > 0 ? result[0] : null;
