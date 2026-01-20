@@ -25,6 +25,10 @@ class SkuLevelService {
     async getL6(l1Id?: number, l2Id?: number, l3Id?: number, l4Id?: number, l5Id?: number) {
         return await skuLevelRepository.fetchL6(l1Id, l2Id, l3Id, l4Id, l5Id);
     }
+
+    async getVariants(skuEntityId?: number) {
+        return await skuLevelRepository.fetchVariants(skuEntityId);
+    }
 }
 
 export const skuLevelService = new SkuLevelService();
