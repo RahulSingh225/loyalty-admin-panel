@@ -924,6 +924,8 @@ export const skuPointConfig = pgTable("sku_point_config", {
 	pointsPerUnit: numeric("points_per_unit", { precision: 10, scale: 2 }).notNull(),
 	validFrom: timestamp("valid_from", { mode: 'string' }),
 	validTo: timestamp("valid_to", { mode: 'string' }),
+	maxScansPerDay: integer("max_scans_per_day").default(5),
+	isActive: boolean("is_active").default(true),
 	remarks: text(),
 }, (table) => [
 	uniqueIndex("uq_sku_user_type").using("btree", table.clientId.asc().nullsLast().op("int4_ops"), table.skuVariantId.asc().nullsLast().op("int4_ops"), table.userTypeId.asc().nullsLast().op("int4_ops")),
@@ -961,6 +963,7 @@ export const skuPointRules = pgTable("sku_point_rules", {
 	isActive: boolean("is_active").default(true),
 	validFrom: timestamp("valid_from"),
 	validTo: timestamp("valid_to"),
+	description: text(),
 });
 
 export const tdsRecords = pgTable("tds_records", {
@@ -1158,6 +1161,9 @@ export const userTypeEntity = pgTable("user_type_entity", {
 	typeName: text("type_name").notNull(),
 	parentTypeId: integer("parent_type_id"),
 	isActive: boolean("is_active").default(true),
+	maxDailyScans: integer("max_daily_scans").default(50),
+	requiredKycLevel: text("required_kyc_level").default('Basic'),
+	allowedRedemptionChannels: jsonb("allowed_redemption_channels").default([]),
 	remarks: text(),
 }, (table) => [
 	foreignKey({

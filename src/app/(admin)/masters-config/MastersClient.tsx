@@ -31,7 +31,7 @@ import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, T
 import { Bar, Pie } from 'react-chartjs-2';
 import { ChevronDown, ChevronRight, Download, Upload, Edit, Delete } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getMastersDataAction, type SkuNode } from '@/actions/masters-actions';
+import { getMastersDataAction, updateStakeholderConfigAction, upsertPointsMatrixRuleAction, type SkuNode } from '@/actions/masters-actions';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -140,7 +140,8 @@ export default function MastersClient() {
                                         <TableCell>Type ID</TableCell>
                                         <TableCell>Type Name</TableCell>
                                         <TableCell>Description</TableCell>
-                                        <TableCell>Points Multiplier</TableCell>
+                                        <TableCell>Max Daily Scans</TableCell>
+                                        <TableCell>KYC Level</TableCell>
                                         <TableCell>Status</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
@@ -151,7 +152,8 @@ export default function MastersClient() {
                                             <TableCell>{row.id}</TableCell>
                                             <TableCell>{row.code || row.name}</TableCell>
                                             <TableCell>{row.desc}</TableCell>
-                                            <TableCell>{row.mult}</TableCell>
+                                            <TableCell>{row.maxDailyScans}</TableCell>
+                                            <TableCell>{row.requiredKycLevel}</TableCell>
                                             <TableCell>
                                                 <Chip
                                                     label={row.status}
@@ -187,7 +189,6 @@ export default function MastersClient() {
                                         </Select>
                                     </FormControl>
 
-                                    <TextField label="Points Multiplier" type="number" defaultValue={1.0} inputProps={{ step: 0.1 }} fullWidth />
                                     <TextField label="Max Daily Scans" type="number" defaultValue={50} fullWidth />
                                     <FormControl fullWidth>
                                         <InputLabel>Required KYC Level</InputLabel>
@@ -199,6 +200,7 @@ export default function MastersClient() {
                                     </FormControl>
 
                                     <div className="space-y-2">
+                                        <Typography variant="body2" color="textSecondary">Allowed Redemption Channels</Typography>
                                         <FormControlLabel control={<Checkbox defaultChecked />} label="UPI" />
                                         <FormControlLabel control={<Checkbox defaultChecked />} label="Bank Transfer" />
                                         <FormControlLabel control={<Checkbox />} label="Voucher" />
@@ -286,6 +288,15 @@ export default function MastersClient() {
                             <CardHeader title={<Typography variant="h6">SKU Points Configuration</Typography>} />
                             <CardContent>
                                 <form className="space-y-4">
+                                    <FormControl fullWidth>
+                                        <InputLabel>Stakeholder Type</InputLabel>
+                                        <Select defaultValue="All" label="Stakeholder Type">
+                                            <MenuItem value="All">All Stakeholders</MenuItem>
+                                            {stakeholderTypes.map((t) => (
+                                                <MenuItem key={t.id} value={t.name}>{t.name}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
                                     <FormControl fullWidth>
                                         <InputLabel>SKU Category</InputLabel>
                                         <Select defaultValue="Electrical Products" label="SKU Category">
@@ -396,6 +407,7 @@ export default function MastersClient() {
                                         <TableCell>Base Points</TableCell>
                                         <TableCell>Adjustment</TableCell>
                                         <TableCell>Effective From</TableCell>
+                                        <TableCell>Description</TableCell>
                                         <TableCell>Status</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
@@ -417,6 +429,11 @@ export default function MastersClient() {
                                             <TableCell>{r.base}</TableCell>
                                             <TableCell>{r.mult}</TableCell>
                                             <TableCell>{r.from}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" className="truncate max-w-[150px]" title={r.description}>
+                                                    {r.description || '---'}
+                                                </Typography>
+                                            </TableCell>
                                             <TableCell>
                                                 <Chip
                                                     label={r.status}
@@ -471,6 +488,13 @@ export default function MastersClient() {
                                             <MenuItem value="Scheduled">Scheduled</MenuItem>
                                         </Select>
                                     </FormControl>
+                                    <TextField
+                                        label="Rule Description"
+                                        multiline
+                                        rows={2}
+                                        placeholder="e.g. Special bonus for festival season"
+                                        fullWidth
+                                    />
                                     <div className="flex justify-end gap-2">
                                         <Button variant="outlined">Cancel</Button>
                                         <Button variant="contained" color="primary">

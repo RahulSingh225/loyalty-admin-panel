@@ -15,7 +15,8 @@ import {
     Tabs,
     Tab,
     CircularProgress,
-    Alert
+    Alert,
+    TextField
 } from '@mui/material'
 
 import {
@@ -269,12 +270,53 @@ export default function FinanceClient() {
                 )}
             </div>
 
-            {/* TAB CONTENT: TRANSACTIONS (Placeholder based on existing UI, can also query data if needed) */}
+            {/* TAB CONTENT: TRANSACTIONS */}
             <div role="tabpanel" hidden={activeTab !== 1}>
                 {activeTab === 1 && (
                     <Box>
-                        {/* ... Reuse filters and list styles from original file, potentially fetching more data ... */}
-                        <div className="p-6 text-center text-gray-500">Full Transactions List Implementation Pending</div>
+                        <div className="widget-card p-6 w-full">
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                                <Typography variant="h6" fontWeight="600">All Transactions</Typography>
+                                <div className="flex gap-2">
+                                    <TextField size="small" placeholder="Search member..." variant="outlined" sx={{ width: 200 }} />
+                                    <Button variant="outlined" size="small" startIcon={<i className="fas fa-filter text-xs"></i>}>Filter</Button>
+                                    <Button variant="outlined" size="small" startIcon={<i className="fas fa-download text-xs"></i>}>Export</Button>
+                                </div>
+                            </Box>
+                            <TableContainer>
+                                <Table sx={{ minWidth: 800 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Transaction ID</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Date</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Member</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Points/Amount</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Actions</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {financeData?.transactions?.map((row: any) => (
+                                            <TableRow key={row.id}>
+                                                <TableCell className="font-medium text-gray-900">{row.id}</TableCell>
+                                                <TableCell className="text-gray-500">{row.date}</TableCell>
+                                                <TableCell><span className={`badge ${row.typeBadge}`}>{row.type}</span></TableCell>
+                                                <TableCell className="text-gray-500">{row.member}</TableCell>
+                                                <TableCell className="font-medium text-gray-900">{row.amount}</TableCell>
+                                                <TableCell><span className={`badge ${row.badgeColor}`}>{row.status}</span></TableCell>
+                                                <TableCell>
+                                                    <Button size="small" color="primary">Details</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                            <Box mt={3} display="flex" justifyContent="center">
+                                <Typography variant="body2" color="text.secondary">Showing {financeData?.transactions?.length || 0} recent transaction(s)</Typography>
+                            </Box>
+                        </div>
                     </Box>
                 )}
             </div>

@@ -9,8 +9,10 @@ export interface StakeholderType {
     name: string;
     code?: string;
     desc: string;
-    mult: string;
     status: string;
+    maxDailyScans: number;
+    requiredKycLevel: string;
+    allowedRedemptionChannels: number[];
 }
 
 export interface PointsRule {
@@ -22,6 +24,8 @@ export interface PointsRule {
     from: string;
     status: string;
     ruleType: 'Base' | 'Override';
+    maxScansPerDay?: number;
+    description?: string;
 }
 
 export interface SkuNode {
@@ -44,15 +48,20 @@ export async function getMastersDataAction() {
         const stakeholders = await db.select({
             id: userTypeEntity.id,
             typeName: userTypeEntity.typeName,
-            isActive: userTypeEntity.isActive
+            isActive: userTypeEntity.isActive,
+            maxDailyScans: userTypeEntity.maxDailyScans,
+            requiredKycLevel: userTypeEntity.requiredKycLevel,
+            allowedRedemptionChannels: userTypeEntity.allowedRedemptionChannels
         }).from(userTypeEntity).orderBy(desc(userTypeEntity.id));
 
         const stakeholderTypes: StakeholderType[] = stakeholders.map(s => ({
             id: s.id.toString(),
             name: s.typeName,
-            desc: s.typeName + ' Role', // Dummy description
-            mult: '1.0x', // Dummy multiplier as column doesn't exist yet
-            status: s.isActive ? 'Active' : 'Inactive'
+            desc: s.typeName + ' Role',
+            status: s.isActive ? 'Active' : 'Inactive',
+            maxDailyScans: s.maxDailyScans || 50,
+            requiredKycLevel: s.requiredKycLevel || 'Basic',
+            allowedRedemptionChannels: (s.allowedRedemptionChannels as number[]) || []
         }));
 
         // 2. Fetch Points Config (Base Points)
@@ -62,11 +71,11 @@ export async function getMastersDataAction() {
                 id: skuPointConfig.id,
                 userType: userTypeEntity.typeName,
                 variantName: skuVariant.variantName,
-                // We might want SKU Category (Entity) name too?
                 entityName: skuEntity.name,
                 points: skuPointConfig.pointsPerUnit,
                 validFrom: skuPointConfig.validFrom,
-                isActive: skuVariant.isActive // approximate status
+                isActive: skuPointConfig.isActive,
+                maxScansPerDay: skuPointConfig.maxScansPerDay
             })
             .from(skuPointConfig)
             .leftJoin(userTypeEntity, eq(skuPointConfig.userTypeId, userTypeEntity.id))
@@ -80,38 +89,40 @@ export async function getMastersDataAction() {
             base: c.points ? `${c.points} Pts` : '0 Pts',
             mult: '1.0x',
             from: c.validFrom ? new Date(c.validFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            status: 'Active',
-            ruleType: 'Base'
+            status: c.isActive ? 'Active' : 'Inactive',
+            ruleType: 'Base',
+            maxScansPerDay: c.maxScansPerDay || 5
         }));
 
-        // 3. Fetch Points Rules (Now from skuPointConfig as requested)
+        // 3. Fetch Points Rules (Override Rules)
         const rules = await db
             .select({
-                id: skuPointConfig.id,
-                name: sqlTag`'Base config'` as any,
+                id: skuPointRules.id,
+                name: skuPointRules.name,
                 userType: userTypeEntity.typeName,
                 skuEntityName: skuEntity.name,
                 skuVariantName: skuVariant.variantName,
-                skuCode: skuEntity.code,
-                actionType: sqlTag`'FLAT_OVERRIDE'` as any,
-                actionValue: skuPointConfig.pointsPerUnit,
-                validFrom: skuPointConfig.validFrom,
-                isActive: sqlTag`true` as any
+                actionType: skuPointRules.actionType,
+                actionValue: skuPointRules.actionValue,
+                validFrom: skuPointRules.validFrom,
+                isActive: skuPointRules.isActive,
+                description: skuPointRules.description
             })
-            .from(skuPointConfig)
-            .leftJoin(userTypeEntity, eq(skuPointConfig.userTypeId, userTypeEntity.id))
-            .leftJoin(skuVariant, eq(skuPointConfig.skuVariantId, skuVariant.id))
-            .leftJoin(skuEntity, eq(skuVariant.skuEntityId, skuEntity.id));
+            .from(skuPointRules)
+            .leftJoin(userTypeEntity, eq(skuPointRules.userTypeId, userTypeEntity.id))
+            .leftJoin(skuVariant, eq(skuPointRules.skuVariantId, skuVariant.id))
+            .leftJoin(skuEntity, eq(skuPointRules.skuEntityId, skuEntity.id));
         console.log(rules.length);
         const overrideRules: PointsRule[] = rules.map(r => ({
             id: `RULE-${r.id}`,
             stakeholder: r.userType || 'All',
-            category: r.skuEntityName || r.name || r.skuCode || r.skuVariantName || 'Special Rule',
+            category: r.skuEntityName || r.skuVariantName || 'General',
             base: r.actionType === 'FLAT_OVERRIDE' ? `${r.actionValue} Pts` : '---',
-            mult: r.actionType === 'PERCENTAGE_ADD' ? `+${r.actionValue}%` : r.actionType === 'FIXED_ADD' ? `+${r.actionValue} Pts` : '1.0x',
-            from: r.validFrom ? new Date(r.validFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            mult: r.actionType === 'PERCENTAGE_ADD' ? `+${r.actionValue}%` : r.actionType === 'FIXED_ADD' ? `+${r.actionValue} Pts` : '---',
+            from: r.validFrom ? new Date(r.validFrom).toISOString().split('T')[0] : '---',
             status: r.isActive ? 'Active' : 'Inactive',
-            ruleType: 'Override'
+            ruleType: 'Override',
+            description: r.description || ''
         }));
 
         // Combine
@@ -195,5 +206,78 @@ export async function getMastersDataAction() {
             skuHierarchy: [],
             topSkus: []
         };
+    }
+}
+
+export async function updateStakeholderConfigAction(data: {
+    id: number;
+    maxDailyScans: number;
+    requiredKycLevel: string;
+    allowedRedemptionChannels: number[];
+}) {
+    try {
+        await db.update(userTypeEntity)
+            .set({
+                maxDailyScans: data.maxDailyScans,
+                requiredKycLevel: data.requiredKycLevel,
+                allowedRedemptionChannels: data.allowedRedemptionChannels
+            })
+            .where(eq(userTypeEntity.id, data.id));
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating stakeholder config:", error);
+        return { success: false, error: "Failed to update configuration" };
+    }
+}
+
+export async function upsertPointsMatrixRuleAction(data: {
+    id?: number;
+    name: string;
+    clientId: number;
+    userTypeId?: number;
+    skuEntityId?: number;
+    skuVariantId?: number;
+    actionType: string;
+    actionValue: number;
+    description?: string;
+    isActive: boolean;
+    validFrom?: string;
+    validTo?: string;
+}) {
+    try {
+        if (data.id) {
+            await db.update(skuPointRules)
+                .set({
+                    name: data.name,
+                    userTypeId: data.userTypeId,
+                    skuEntityId: data.skuEntityId,
+                    skuVariantId: data.skuVariantId,
+                    actionType: data.actionType as any,
+                    actionValue: data.actionValue.toString(),
+                    description: data.description,
+                    isActive: data.isActive,
+                    validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                    validTo: data.validTo ? new Date(data.validTo) : null
+                })
+                .where(eq(skuPointRules.id, data.id));
+        } else {
+            await db.insert(skuPointRules).values({
+                name: data.name,
+                clientId: data.clientId,
+                userTypeId: data.userTypeId,
+                skuEntityId: data.skuEntityId,
+                skuVariantId: data.skuVariantId,
+                actionType: data.actionType as any,
+                actionValue: data.actionValue.toString(),
+                description: data.description,
+                isActive: data.isActive,
+                validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                validTo: data.validTo ? new Date(data.validTo) : null
+            });
+        }
+        return { success: true };
+    } catch (error) {
+        console.error("Error upserting points matrix rule:", error);
+        return { success: false, error: "Failed to save rule" };
     }
 }

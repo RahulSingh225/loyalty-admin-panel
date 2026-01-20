@@ -112,27 +112,31 @@ export default function MisClient() {
         }]
     }
 
-    // ... (Other static charts kept as is for now to avoid breaking UI layout if data missing)
+    // Member Analytics: Segmentation (Doughnut)
     const memberSegData = {
-        labels: ['Electricians', 'Retailers', 'Contractors', 'Builders'],
+        labels: analyticsData?.memberAnalytics?.segmentation?.labels || ['Electricians', 'Retailers', 'Contractors', 'Builders'],
         datasets: [{
-            data: [45, 25, 20, 10],
+            data: analyticsData?.memberAnalytics?.segmentation?.data || [45, 25, 20, 10],
             backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
             hoverOffset: 4
         }]
     }
+
+    // Campaign Analytics: Trend
     const campaignTrendData = {
-        labels: ['W1', 'W2', 'W3', 'W4'],
-        datasets: [
+        labels: analyticsData?.campaignAnalytics?.performanceTrend?.labels || ['W1', 'W2', 'W3', 'W4'],
+        datasets: analyticsData?.campaignAnalytics?.performanceTrend?.datasets || [
             { label: 'Reach', data: [5000, 12000, 28000, 45000], borderColor: '#3b82f6', tension: 0.4 },
             { label: 'Conversion', data: [100, 350, 980, 1850], borderColor: '#10b981', tension: 0.4 }
         ]
     }
+
+    // Campaign Analytics: Channel Effectiveness
     const channelEffectData = {
-        labels: ['SMS', 'WhatsApp', 'Email', 'Push Notif'],
+        labels: analyticsData?.campaignAnalytics?.channelEffectiveness?.labels || ['SMS', 'WhatsApp', 'Email', 'Push Notif'],
         datasets: [{
             label: 'Conversion Rate %',
-            data: [12, 28, 5, 8],
+            data: analyticsData?.campaignAnalytics?.channelEffectiveness?.data || [12, 28, 5, 8],
             backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
             borderRadius: 4
         }]
@@ -725,7 +729,7 @@ export default function MisClient() {
                                                         </TableCell>
                                                         <TableCell>
                                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${row.status === 'Success' ? 'bg-green-100 text-green-800' :
-                                                                    row.status === 'Failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                                                                row.status === 'Failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                                                                 }`}>
                                                                 {row.status}
                                                             </span>

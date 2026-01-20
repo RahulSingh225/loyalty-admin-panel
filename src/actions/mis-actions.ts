@@ -1,95 +1,230 @@
 'use server'
 
 import { db } from "@/db"
-import { users, counterSalesTransactionLogs } from "@/db/schema"
-import { count } from "drizzle-orm"
+import {
+    users,
+    retailerTransactions,
+    electricianTransactions,
+    counterSalesTransactions,
+    redemptions,
+    userTypeEntity,
+    campaigns,
+    redemptionStatuses
+} from "@/db/schema"
+import { count, sum, sql, desc, eq, and, gt, gte, lt } from "drizzle-orm"
 
 export async function getMisAnalyticsAction() {
-    // Example of real data fetching mixed with mock data
-    // Fetch total active members
-    const [userCount] = await db.select({ count: count() }).from(users);
+    try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // We would usually fetch more aggregate data here.
-    // For now, we return the structure expected by the UI.
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    return {
-        executive: {
-            totalPoints: 45230, // Mock
-            activeMembers: userCount.count, // Real
-            engagement: 78.5,
-            redemptionRate: 42.3,
-            pointsTrend: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                data: [35000, 38000, 42000, 40000, 43500, 45230]
+        // --- 1. EXECUTIVE DASHBOARD DATA ---
+
+        // Total Active Members
+        const [memberCount] = await db.select({ value: count() }).from(users);
+
+        // Total Points Allotted (Sum of all 3 earning tables)
+        const [rSum] = await db.select({ value: sum(retailerTransactions.points) }).from(retailerTransactions);
+        const [eSum] = await db.select({ value: sum(electricianTransactions.points) }).from(electricianTransactions);
+        const [csSum] = await db.select({ value: sum(counterSalesTransactions.points) }).from(counterSalesTransactions);
+        const totalPointsAllotted = Number(rSum?.value || 0) + Number(eSum?.value || 0) + Number(csSum?.value || 0);
+
+        // Engagement (Recent active members - had a transaction in last 30 days)
+        const activeRecentResult = await db.execute(sql`
+            SELECT count(DISTINCT user_id) as count FROM (
+                SELECT user_id, created_at FROM retailer_transactions
+                UNION ALL
+                SELECT user_id, created_at FROM electrician_transactions
+                UNION ALL
+                SELECT user_id, created_at FROM counter_sales_transactions
+            ) as activity
+            WHERE created_at >= ${thirtyDaysAgo.toISOString()}
+        `);
+        const activeRecentCount = Number(activeRecentResult.rows[0]?.count || 0);
+        const engagementRate = memberCount.value > 0 ? (activeRecentCount / memberCount.value) * 100 : 0;
+
+        // Redemption Rate (Redeemed / Allotted)
+        const [redeemSum] = await db.select({ value: sum(redemptions.pointsRedeemed) }).from(redemptions);
+        const redemptionRate = totalPointsAllotted > 0 ? (Number(redeemSum?.value || 0) / totalPointsAllotted) * 100 : 0;
+
+        // Points Allotted Trend (Last 6 Months)
+        const pointsTrendResult = await db.execute(sql`
+            SELECT TO_CHAR(created_at, 'Mon') as month, TO_CHAR(created_at, 'YYYY-MM') as mf, sum(points)::numeric as total
+            FROM (
+                SELECT created_at, points FROM retailer_transactions
+                UNION ALL
+                SELECT created_at, points FROM electrician_transactions
+                UNION ALL
+                SELECT created_at, points FROM counter_sales_transactions
+            ) as t
+            GROUP BY 1, 2 ORDER BY 2 ASC LIMIT 6
+        `);
+
+        // Member Growth (New users count per month)
+        const memberGrowthResult = await db.execute(sql`
+            SELECT TO_CHAR(created_at, 'Mon') as month, TO_CHAR(created_at, 'YYYY-MM') as mf, count(*)::integer as count
+            FROM users
+            GROUP BY 1, 2 ORDER BY 2 ASC LIMIT 6
+        `);
+
+        // --- 2. PERFORMANCE METRICS ---
+
+        // Transaction Volume (Last 7 Days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const txnVolumeResult = await db.execute(sql`
+            SELECT TO_CHAR(created_at, 'Dy') as day, TO_CHAR(created_at, 'YYYY-MM-DD') as df, count(*)::integer as count
+            FROM (
+                SELECT created_at FROM retailer_transactions
+                UNION ALL
+                SELECT created_at FROM electrician_transactions
+                UNION ALL
+                SELECT created_at FROM counter_sales_transactions
+            ) as t
+            WHERE created_at >= ${sevenDaysAgo.toISOString()}
+            GROUP BY 1, 2 ORDER BY 2 ASC
+        `);
+
+        // Category Performance (Points per category)
+        const categoryPerfResult = await db.execute(sql`
+            SELECT COALESCE(category, 'General') as category, sum(points)::numeric as total
+            FROM (
+                SELECT category, points FROM retailer_transactions
+                UNION ALL
+                SELECT category, points FROM electrician_transactions
+                UNION ALL
+                SELECT category, points FROM counter_sales_transactions
+            ) as t
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+        `);
+
+        // --- 3. MEMBER ANALYTICS ---
+
+        // Segmentation (By Stakeholder Type)
+        const segmentationResult = await db.select({
+            name: userTypeEntity.typeName,
+            value: count()
+        })
+            .from(users)
+            .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
+            .groupBy(userTypeEntity.typeName);
+
+        // Lifecycle
+        const [newMembers] = await db.select({ count: count() }).from(users).where(gte(users.createdAt, sql`${thirtyDaysAgo.toISOString()}`));
+        const [churnedMembers] = await db.select({ count: count() }).from(users).where(lt(users.createdAt, sql`${ninetyDaysAgo.toISOString()}`)); // Simple churn for registration logic or could check transaction history
+
+        // Recent Activity
+        const recentActivitiesResult = await db.execute(sql`
+            SELECT u.id, u.name, ut.type_name as type, 
+                   TO_CHAR(activity.created_at, 'YYYY-MM-DD HH24:MI') as "lastActivity", 
+                   activity.points as points,
+                   activity.sku as sku
+            FROM (
+                SELECT user_id, created_at, points, sku FROM retailer_transactions
+                UNION ALL
+                SELECT user_id, created_at, points, sku FROM electrician_transactions
+                UNION ALL
+                SELECT user_id, created_at, points, sku FROM counter_sales_transactions
+            ) as activity
+            JOIN users u ON activity.user_id = u.id
+            JOIN user_type_entity ut ON u.role_id = ut.id
+            ORDER BY activity.created_at DESC LIMIT 10
+        `);
+        const recentRows = recentActivitiesResult.rows as any[];
+
+        // --- 4. CAMPAIGN ANALYTICS ---
+        const activeCampaignsCount = await db.select({ count: count() }).from(campaigns).where(eq(campaigns.isActive, true));
+        const [totalSpend] = await db.select({ value: sum(campaigns.spentBudget) }).from(campaigns);
+
+        const topCampaignsList = await db.select().from(campaigns).orderBy(desc(campaigns.spentBudget)).limit(3);
+
+        return {
+            executive: {
+                totalPoints: totalPointsAllotted,
+                activeMembers: memberCount.value,
+                engagement: Number(engagementRate.toFixed(1)),
+                redemptionRate: Number(redemptionRate.toFixed(1)),
+                pointsTrend: {
+                    labels: pointsTrendResult.rows.map(r => r.month),
+                    data: pointsTrendResult.rows.map(r => Number(r.total))
+                },
+                memberGrowth: {
+                    labels: memberGrowthResult.rows.map(r => r.month),
+                    data: memberGrowthResult.rows.map(r => Number(r.count))
+                }
             },
-            memberGrowth: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                data: [1200, 1350, 1500, 1800, 2100, 2450]
+            performance: {
+                txnVolume: {
+                    labels: txnVolumeResult.rows.map(r => r.day),
+                    data: txnVolumeResult.rows.map(r => Number(r.count))
+                },
+                categoryPerf: {
+                    labels: categoryPerfResult.rows.map(r => r.category),
+                    data: categoryPerfResult.rows.map(r => Number(r.total) / 100000) // Scaling to Lakhs as original UI
+                }
+            },
+            memberAnalytics: {
+                segmentation: {
+                    labels: segmentationResult.map(r => r.name || 'Unknown'),
+                    data: segmentationResult.map(r => Number(r.value))
+                },
+                lifecycle: {
+                    new: Number(newMembers?.count || 0),
+                    active: activeRecentCount,
+                    atRisk: Math.max(0, memberCount.value - activeRecentCount - Number(churnedMembers?.count || 0)),
+                    churned: Number(churnedMembers?.count || 0)
+                },
+                recentActivity: recentRows.map((r: any) => ({
+                    ...r,
+                    status: 'Active' // Mapping logic simplified
+                })),
+                satisfaction: { average: 4.6, distribution: [45, 35, 15, 4, 1] } // Mock for now
+            },
+            campaignAnalytics: {
+                kpis: {
+                    activeCampaigns: Number(activeCampaignsCount[0]?.count || 0),
+                    totalReach: '1.2L', // Placeholder
+                    conversionRate: 18.5,
+                    roi: 245
+                },
+                performanceTrend: {
+                    labels: ['W1', 'W2', 'W3', 'W4'],
+                    datasets: [
+                        { label: 'Reach', data: [5000, 12000, 28000, 45000], borderColor: '#3b82f6', tension: 0.4 },
+                        { label: 'Conversion', data: [100, 350, 980, 1850], borderColor: '#10b981', tension: 0.4 }
+                    ]
+                },
+                channelEffectiveness: {
+                    labels: ['SMS', 'WhatsApp', 'Email', 'Push Notif'],
+                    data: [12, 28, 5, 8]
+                },
+                topCampaigns: topCampaignsList.map(c => ({
+                    name: c.name,
+                    type: 'Points Multiplier',
+                    duration: 'Ongoing',
+                    reach: '---',
+                    engagement: '---',
+                    conversion: '---',
+                    roi: '---'
+                }))
+            },
+            reports: {
+                qrScanReport: recentRows.map((r: any) => ({
+                    id: `#${r.id}`,
+                    stakeholder: r.name,
+                    sku: r.sku || '---',
+                    geo: '---',
+                    time: r.lastActivity,
+                    type: 'Mono',
+                    status: 'Success'
+                }))
             }
-        },
-        performance: {
-            txnVolume: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                data: [150, 230, 180, 320, 290, 140, 190]
-            },
-            categoryPerf: {
-                labels: ['Wires', 'Switches', 'Lights', 'Fans', 'MCBs'],
-                data: [23.4, 18.7, 15.4, 12.1, 9.8]
-            }
-        },
-        memberAnalytics: {
-            segmentation: {
-                labels: ['Electricians', 'Retailers', 'Contractors', 'Builders'],
-                data: [45, 25, 20, 10]
-            },
-            lifecycle: {
-                new: 2345,
-                active: 35678,
-                atRisk: 5432,
-                churned: 1223
-            },
-            satisfaction: {
-                average: 4.6,
-                distribution: [45, 35, 15, 4, 1] // 5 star to 1 star
-            },
-            recentActivity: [
-                { id: 'MEM001234', name: 'Rahul Sharma', type: 'Electrician', lastActivity: '2 hours ago', points: 450, status: 'Active' },
-                { id: 'MEM001235', name: 'Amit Patel', type: 'Contractor', lastActivity: '5 hours ago', points: 320, status: 'Active' },
-                { id: 'MEM001236', name: 'Vikram Singh', type: 'Distributor', lastActivity: '2 days ago', points: 180, status: 'At Risk' }
-            ]
-        },
-        campaignAnalytics: {
-            kpis: {
-                activeCampaigns: 12,
-                totalReach: '1.2L',
-                conversionRate: 18.5,
-                roi: 245
-            },
-            performanceTrend: {
-                labels: ['W1', 'W2', 'W3', 'W4'],
-                datasets: [
-                    { label: 'Reach', data: [5000, 12000, 28000, 45000], borderColor: '#3b82f6', tension: 0.4 },
-                    { label: 'Conversion', data: [100, 350, 980, 1850], borderColor: '#10b981', tension: 0.4 }
-                ]
-            },
-            channelEffectiveness: {
-                labels: ['SMS', 'WhatsApp', 'Email', 'Push Notif'],
-                data: [12, 28, 5, 8]
-            },
-            topCampaigns: [
-                { name: 'Diwali Special', type: 'Points Multiplier', duration: 'Oct 15-25', reach: '45,678', engagement: '78.5%', conversion: '22.3%', roi: '285%' },
-                { name: 'New Member Welcome', type: 'Onboarding', duration: 'Ongoing', reach: '12,345', engagement: '92.1%', conversion: '45.6%', roi: '320%' },
-                { name: 'Monsoon Offer', type: 'Seasonal', duration: 'Jul 1-31', reach: '23,456', engagement: '65.4%', conversion: '18.9%', roi: '198%' }
-            ]
-        },
-        reports: {
-            qrScanReport: [
-                { id: '#12345', stakeholder: 'Retailer A', sku: 'SKU001', geo: 'Delhi', time: '2023-10-01 10:30', type: 'Mono', status: 'Success' },
-                { id: '#12346', stakeholder: 'Electrician B', sku: 'SKU002', geo: 'Mumbai', time: '2023-10-01 11:15', type: 'Sub-mono', status: 'Failed' },
-                { id: '#12347', stakeholder: 'CSB C', sku: 'SKU003', geo: 'Bangalore', time: '2023-10-01 12:45', type: 'Mono', status: 'Success' },
-                { id: '#12348', stakeholder: 'Retailer D', sku: 'SKU001', geo: 'Kolkata', time: '2023-10-01 13:20', type: 'Sub-mono', status: 'Pending' },
-                { id: '#12349', stakeholder: 'Electrician E', sku: 'SKU002', geo: 'Chennai', time: '2023-10-01 14:10', type: 'Mono', status: 'Success' }
-            ]
         }
+    } catch (error) {
+        console.error("Error fetching MIS analytics:", error);
+        return null;
     }
 }
