@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getConfigurationAction } from '@/actions/configuration-actions';
 import {
     Box,
     Typography,
@@ -84,8 +86,31 @@ export default function ConfigurationClient() {
     const [activeTab, setActiveTab] = useState(0);
     const [userType, setUserType] = useState('');
 
+    const { data: configData } = useQuery({
+        queryKey: ['configuration'],
+        queryFn: getConfigurationAction
+    });
+
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setActiveTab(newValue);
+    };
+
+    const getCreativeIcon = (typeName: string) => {
+        const name = typeName.toLowerCase();
+        if (name.includes('banner')) return <Image className="text-blue-600 text-2xl" />;
+        if (name.includes('video')) return <VideoLibrary className="text-purple-600 text-2xl" />;
+        if (name.includes('content') || name.includes('doc') || name.includes('library')) return <Description className="text-red-600 text-2xl" />;
+        if (name.includes('gift') || name.includes('reward')) return <CardGiftcard className="text-yellow-600 text-2xl" />;
+        return <Image className="text-gray-600 text-2xl" />;
+    };
+
+    const getIconBgColor = (typeName: string) => {
+        const name = typeName.toLowerCase();
+        if (name.includes('banner')) return 'bg-blue-100';
+        if (name.includes('video')) return 'bg-purple-100';
+        if (name.includes('content') || name.includes('doc') || name.includes('library')) return 'bg-red-100';
+        if (name.includes('gift') || name.includes('reward')) return 'bg-yellow-100';
+        return 'bg-gray-100';
     };
 
     return (
@@ -234,97 +259,52 @@ export default function ConfigurationClient() {
             {/* Banners & Content Tab */}
             {activeTab === 1 && (
                 <Grid container spacing={4}>
-                    <Grid size={{ xs: 12, lg: 6 }}>
-                        <div className="widget-card rounded-xl shadow p-6">
-                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                                <h3 className="text-lg font-semibold text-primary">Banner Management</h3>
-                                <Button startIcon={<Add />} variant="contained" size="small" className="bg-blue-600">Upload</Button>
-                            </Box>
+                    {configData?.creativeTypes?.map((type: any) => (
+                        <Grid key={type.id} size={{ xs: 12, lg: 6 }}>
+                            <div className="widget-card rounded-xl shadow p-6 h-full">
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+                                    <h3 className="text-lg font-semibold text-primary">{type.name} Management</h3>
+                                    <Button startIcon={<Add />} variant="contained" size="small" className="bg-blue-600">Upload</Button>
+                                </Box>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                    <div className="flex-shrink-0 w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <Image className="text-blue-600 text-2xl" />
-                                    </div>
-                                    <div className="ml-4 flex-1">
-                                        <Typography variant="body1" fontWeight="600">Diwali Offer Banner</Typography>
-                                        <Typography variant="body2" color="text.secondary">Active on Dashboard</Typography>
-                                    </div>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton size="small" sx={{ color: '#2563eb' }}><Edit fontSize="small" /></IconButton>
-                                        <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
-                                    </Box>
-                                </div>
-
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                    <div className="flex-shrink-0 w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center">
-                                        <Image className="text-green-600 text-2xl" />
-                                    </div>
-                                    <div className="ml-4 flex-1">
-                                        <Typography variant="body1" fontWeight="600">New Member Welcome</Typography>
-                                        <Typography variant="body2" color="text.secondary">Active on Login</Typography>
-                                    </div>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton size="small" sx={{ color: '#2563eb' }}><Edit fontSize="small" /></IconButton>
-                                        <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
-                                    </Box>
-                                </div>
-                            </div>
-                        </div>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, lg: 6 }}>
-                        <div className="widget-card rounded-xl shadow p-6">
-                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                                <h3 className="text-lg font-semibold text-primary">Content Library</h3>
-                                <Button startIcon={<Add />} variant="contained" size="small" className="bg-blue-600">Upload</Button>
-                            </Box>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                    <div className="flex-shrink-0 w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center">
-                                        <Description className="text-red-600 text-2xl" />
-                                    </div>
-                                    <div className="ml-4 flex-1">
-                                        <Typography variant="body1" fontWeight="600">Program Terms & Conditions</Typography>
-                                        <Typography variant="body2" color="text.secondary">PDF Document</Typography>
-                                    </div>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton size="small" sx={{ color: '#2563eb' }}><Visibility fontSize="small" /></IconButton>
-                                        <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
-                                    </Box>
-                                </div>
-
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                    <div className="flex-shrink-0 w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center">
-                                        <VideoLibrary className="text-purple-600 text-2xl" />
-                                    </div>
-                                    <div className="ml-4 flex-1">
-                                        <Typography variant="body1" fontWeight="600">How to Earn Points</Typography>
-                                        <Typography variant="body2" color="text.secondary">Video Tutorial</Typography>
-                                    </div>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton size="small" sx={{ color: '#2563eb' }}><Visibility fontSize="small" /></IconButton>
-                                        <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
-                                    </Box>
-                                </div>
-
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                    <div className="flex-shrink-0 w-16 h-16 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                        <CardGiftcard className="text-yellow-600 text-2xl" />
-                                    </div>
-                                    <div className="ml-4 flex-1">
-                                        <Typography variant="body1" fontWeight="600">Rewards Catalog</Typography>
-                                        <Typography variant="body2" color="text.secondary">Voucher Catalog</Typography>
-                                    </div>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton size="small" sx={{ color: '#2563eb' }}><Visibility fontSize="small" /></IconButton>
-                                        <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
-                                    </Box>
+                                <div className="space-y-4">
+                                    {configData?.creatives
+                                        ?.filter((c: any) => c.typeId === type.id)
+                                        .map((creative: any) => (
+                                            <div key={creative.id} className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
+                                                <div className={`flex-shrink-0 w-16 h-16 ${getIconBgColor(type.name)} rounded-lg flex items-center justify-center`}>
+                                                    {getCreativeIcon(type.name)}
+                                                </div>
+                                                <div className="ml-4 flex-1">
+                                                    <Typography variant="body1" fontWeight="600">{creative.title}</Typography>
+                                                    <Typography variant="body2" color="text.secondary">{creative.carouselName}</Typography>
+                                                </div>
+                                                <Box display="flex" gap={1}>
+                                                    <IconButton size="small" sx={{ color: '#2563eb' }}><Edit fontSize="small" /></IconButton>
+                                                    <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
+                                                </Box>
+                                            </div>
+                                        ))}
+                                    {configData?.creatives?.filter((c: any) => c.typeId === type.id).length === 0 && (
+                                        <Box textAlign="center" py={4}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                No {type.name.toLowerCase()} items found
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-                    </Grid>
+                        </Grid>
+                    ))}
+                    {(!configData?.creativeTypes || configData.creativeTypes.length === 0) && (
+                        <Grid size={{ xs: 12 }}>
+                            <div className="widget-card rounded-xl shadow p-12 text-center">
+                                <Typography variant="h6" color="text.secondary" mb={2}>No Banner or Content Sections Configured</Typography>
+                                <Typography variant="body2" color="text.secondary" mb={4}>Creative types defined in the database will appear here automatically.</Typography>
+                                <Button startIcon={<Add />} variant="contained" className="bg-blue-600">Add Creative Type</Button>
+                            </div>
+                        </Grid>
+                    )}
                 </Grid>
             )}
 

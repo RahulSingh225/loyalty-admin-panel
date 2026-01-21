@@ -1,15 +1,19 @@
 'use server'
 
 import { db } from "@/db"
-import { appConfigs } from "@/db/schema"
+import { appConfigs, creatives, creativesTypes } from "@/db/schema"
 import { eq } from "drizzle-orm"
 
 export async function getConfigurationAction() {
     try {
+        // Fetch creative types and creatives
+        const creativeTypesList = await db.select().from(creativesTypes).where(eq(creativesTypes.isActive, true));
+        const creativesList = await db.select().from(creatives).where(eq(creatives.isActive, true));
+
         // In a real app, you would fetch from database
         // const configs = await db.select().from(appConfigs);
 
-        // Returning mock data that matches the UI for now
+        // Returning data that matches the UI
         return {
             redemptionMatrix: {
                 retailer: { minPoints: 500, maxDay: 5000, maxWeek: 25000, maxMonth: 100000 },
@@ -24,7 +28,9 @@ export async function getConfigurationAction() {
                 prefix: "STURLITE",
                 maxReferrals: 10,
                 validityDays: 30
-            }
+            },
+            creativeTypes: creativeTypesList,
+            creatives: creativesList
         };
     } catch (error) {
         console.error("Error in getConfigurationAction:", error);
