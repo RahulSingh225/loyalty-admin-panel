@@ -163,12 +163,72 @@ const accessLogsData: AccessLog[] = [
     }
 ];
 
+import { db } from "@/db";
+import { users, userTypeEntity, approvalStatuses } from "@/db/schema";
+import { eq, and, count } from "drizzle-orm";
+
 export async function getRoleDataAction() {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-        users: usersData,
-        roles: rolesData,
-        logs: accessLogsData
-    };
+    try {
+        const dbUsers = await db.select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: userTypeEntity.typeName,
+            status: approvalStatuses.name,
+            lastLogin: users.lastLoginAt,
+            isSuspended: users.isSuspended,
+        })
+            .from(users)
+            .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
+            .leftJoin(approvalStatuses, eq(users.approvalStatusId, approvalStatuses.id))
+            .limit(100);
+
+        const [totalUsersCount] = await db.select({ value: count() }).from(users);
+        const [activeUsersCount] = await db.select({ value: count() }).from(users).where(eq(users.isSuspended, false));
+        const [adminUsersCount] = await db.select({ value: count() }).from(users).innerJoin(userTypeEntity, and(eq(users.roleId, userTypeEntity.id), eq(userTypeEntity.typeName, 'Admin')));
+
+        const formattedUsers: User[] = dbUsers.map(u => {
+            const initials = u.name ? u.name.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
+            const colors = ['primary.main', 'secondary.main', 'success.main', 'warning.main', 'error.main'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            return {
+                id: `USR${u.id.toString().padStart(3, '0')}`,
+                name: u.name || 'Unknown',
+                email: u.email || 'N/A',
+                role: u.role || 'User',
+                department: 'N/A', // Department not in schema, placeholder
+                lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never',
+                status: u.isSuspended ? 'inactive' : (u.status?.toLowerCase().includes('approved') || u.status?.toLowerCase().includes('active') ? 'active' : 'pending'),
+                avatar: '',
+                initials: initials,
+                color: color
+            };
+        });
+
+        return {
+            users: formattedUsers,
+            roles: rolesData,
+            logs: accessLogsData,
+            stats: {
+                totalUsers: totalUsersCount.value,
+                activeUsers: activeUsersCount.value,
+                adminUsers: adminUsersCount.value,
+                pendingInvites: 0 // Mocked for now
+            }
+        };
+    } catch (error) {
+        console.error("Error fetching role data:", error);
+        return {
+            users: [],
+            roles: [],
+            logs: [],
+            stats: {
+                totalUsers: 0,
+                activeUsers: 0,
+                adminUsers: 0,
+                pendingInvites: 0
+            }
+        };
+    }
 }

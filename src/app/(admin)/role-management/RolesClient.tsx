@@ -122,7 +122,7 @@ export default function RolesClient() {
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={tabValue} onChange={handleTabChange} aria-label="role management tabs">
                     <Tab label="Users" {...a11yProps(0)} />
-                    <Tab label="Roles" {...a11yProps(1)} />
+                    {/* <Tab label="Roles" {...a11yProps(1)} /> */}
                     <Tab label="Access Logs" {...a11yProps(2)} />
                 </Tabs>
             </Box>
@@ -140,11 +140,11 @@ export default function RolesClient() {
                                     <People color="primary" />
                                 </Box>
                                 <Typography variant="h4" component="div" gutterBottom>
-                                    248
+                                    {data?.stats?.totalUsers || 0}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" color="success.main">
-                                        +12
+                                        +0
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                         this month
@@ -163,11 +163,11 @@ export default function RolesClient() {
                                     <CheckCircle color="success" />
                                 </Box>
                                 <Typography variant="h4" component="div" gutterBottom>
-                                    186
+                                    {data?.stats?.activeUsers || 0}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" color="success.main">
-                                        75%
+                                        {data?.stats?.totalUsers ? Math.round((data.stats.activeUsers / data.stats.totalUsers) * 100) : 0}%
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                         active rate
@@ -186,11 +186,11 @@ export default function RolesClient() {
                                     <Shield color="secondary" />
                                 </Box>
                                 <Typography variant="h4" component="div" gutterBottom>
-                                    12
+                                    {data?.stats?.adminUsers || 0}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" color="primary.main">
-                                        5%
+                                        {data?.stats?.totalUsers ? Math.round((data.stats.adminUsers / data.stats.totalUsers) * 100) : 0}%
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                         of total
@@ -209,11 +209,11 @@ export default function RolesClient() {
                                     <Notifications color="warning" />
                                 </Box>
                                 <Typography variant="h4" component="div" gutterBottom>
-                                    8
+                                    {data?.stats?.pendingInvites || 0}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" color="warning.main">
-                                        3
+                                        0
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                                         expiring
@@ -360,9 +360,9 @@ export default function RolesClient() {
                         </TableContainer>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
                             <Typography variant="body2" color="text.secondary">
-                                Showing 1 to 5 of 248 entries
+                                Showing 1 to {users.length} of {data?.stats?.totalUsers || 0} entries
                             </Typography>
-                            <Pagination count={5} page={1} />
+                            <Pagination count={Math.ceil((data?.stats?.totalUsers || 1) / 100)} page={1} />
                         </Box>
                     </CardContent>
                 </Card>

@@ -274,47 +274,130 @@ export default function FinanceClient() {
             <div role="tabpanel" hidden={activeTab !== 1}>
                 {activeTab === 1 && (
                     <Box>
-                        <div className="widget-card p-6 w-full">
-                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                                <Typography variant="h6" fontWeight="600">All Transactions</Typography>
-                                <div className="flex gap-2">
-                                    <TextField size="small" placeholder="Search member..." variant="outlined" sx={{ width: 200 }} />
-                                    <Button variant="outlined" size="small" startIcon={<i className="fas fa-filter text-xs"></i>}>Filter</Button>
-                                    <Button variant="outlined" size="small" startIcon={<i className="fas fa-download text-xs"></i>}>Export</Button>
+                        <div className="widget-card p-6 w-full mb-6">
+                            {/* TRANSACTION FILTERS */}
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Date Range</label>
+                                    <input type="date" className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                                 </div>
-                            </Box>
-                            <TableContainer>
-                                <Table sx={{ minWidth: 800 }}>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">End Date</label>
+                                    <input type="date" className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Transaction Type</label>
+                                    <select className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                                        <option value="">All Types</option>
+                                        <option value="credit">Credit</option>
+                                        <option value="debit">Debit</option>
+                                        <option value="refund">Refund</option>
+                                        <option value="adjustment">Adjustment</option>
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Status</label>
+                                    <select className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                                        <option value="">All Status</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="failed">Failed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <Button variant="contained" size="small" fullWidth sx={{ py: 1.1, textTransform: 'none', backgroundColor: '#2563eb' }}>
+                                        <i className="fas fa-filter mr-2"></i> Apply Filters
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* TRANSACTION SUMMARY UNITS */}
+                            <Grid container spacing={2} sx={{ mb: 6 }}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Transactions</p>
+                                        <p className="text-2xl font-bold text-gray-900">1,234</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Credits</p>
+                                        <p className="text-2xl font-bold text-green-600">₹{(financeData?.overview?.pointsIssued || 0).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-red-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Debits</p>
+                                        <p className="text-2xl font-bold text-red-600">₹{(financeData?.overview?.pointsRedeemed || 0).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Net Balance</p>
+                                        <p className="text-2xl font-bold text-purple-600">₹{((financeData?.overview?.pointsIssued || 0) - (financeData?.overview?.pointsRedeemed || 0)).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                            </Grid>
+
+                            {/* TRANSACTIONS TABLE */}
+                            <TableContainer sx={{ borderTop: '1px solid #f3f4f6' }}>
+                                <Table sx={{ minWidth: 1000 }}>
                                     <TableHead>
                                         <TableRow>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Transaction ID</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Date</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Type</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Member</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Points/Amount</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Status</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>Actions</TableCell>
+                                            <TableCell padding="checkbox">
+                                                <input type="checkbox" className="rounded border-gray-300 ml-3" />
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Transaction ID</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Date & Time</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Member ID</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Member Name</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Description</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Amount</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {financeData?.transactions?.map((row: any) => (
                                             <TableRow key={row.id}>
+                                                <TableCell padding="checkbox">
+                                                    <input type="checkbox" className="rounded border-gray-300 ml-3" />
+                                                </TableCell>
                                                 <TableCell className="font-medium text-gray-900">{row.id}</TableCell>
-                                                <TableCell className="text-gray-500">{row.date}</TableCell>
+                                                <TableCell className="text-gray-500">{row.date} 10:30 AM</TableCell>
                                                 <TableCell><span className={`badge ${row.typeBadge}`}>{row.type}</span></TableCell>
+                                                <TableCell className="text-gray-500">MEM{(row.userId || '001').toString().slice(-3)}</TableCell>
                                                 <TableCell className="text-gray-500">{row.member}</TableCell>
+                                                <TableCell className="text-gray-500">Purchase Reward</TableCell>
                                                 <TableCell className="font-medium text-gray-900">{row.amount}</TableCell>
                                                 <TableCell><span className={`badge ${row.badgeColor}`}>{row.status}</span></TableCell>
                                                 <TableCell>
-                                                    <Button size="small" color="primary">Details</Button>
+                                                    <div className="flex gap-2 text-sm font-medium">
+                                                        <button className="text-blue-600 hover:text-blue-900">View</button>
+                                                        <button className="text-green-600 hover:text-green-900">Edit</button>
+                                                        <button className="text-red-600 hover:text-red-900">Cancel</button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                            <Box mt={3} display="flex" justifyContent="center">
-                                <Typography variant="body2" color="text.secondary">Showing {financeData?.transactions?.length || 0} recent transaction(s)</Typography>
+
+                            {/* PAGINATION */}
+                            <Box mt={4} display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="body2" color="text.secondary">
+                                    Showing 1 to {financeData?.transactions?.length || 0} of 1,234 entries
+                                </Typography>
+                                <div className="flex gap-1">
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Previous</button>
+                                    <button className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">1</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">2</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">3</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Next</button>
+                                </div>
                             </Box>
                         </div>
                     </Box>
