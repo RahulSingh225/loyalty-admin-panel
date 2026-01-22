@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Card,
@@ -86,17 +86,29 @@ function a11yProps(index: number) {
 }
 
 export default function RolesClient() {
-    const { data, isLoading, error } = useQuery({
-        queryKey: ['role-data'],
-        queryFn: getRoleDataAction
-    });
-
     const [tabValue, setTabValue] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [selectedRole, setSelectedRole] = useState('');
     const [openDialog, setOpenDialog] = useState(false);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['role-data', debouncedSearch, roleFilter, statusFilter],
+        queryFn: () => getRoleDataAction({
+            searchTerm: debouncedSearch,
+            roleFilter,
+            statusFilter
+        })
+    });
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
@@ -122,7 +134,7 @@ export default function RolesClient() {
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={tabValue} onChange={handleTabChange} aria-label="role management tabs">
                     <Tab label="Users" {...a11yProps(0)} />
-                    {/* <Tab label="Roles" {...a11yProps(1)} /> */}
+                    <Tab label="Roles" {...a11yProps(1)} />
                     <Tab label="Access Logs" {...a11yProps(2)} />
                 </Tabs>
             </Box>
@@ -130,7 +142,7 @@ export default function RolesClient() {
             <TabPanel value={tabValue} index={0}>
                 {/* User Statistics */}
                 <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Card>
                             <CardContent>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -153,7 +165,7 @@ export default function RolesClient() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Card>
                             <CardContent>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -176,7 +188,7 @@ export default function RolesClient() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Card>
                             <CardContent>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -199,7 +211,7 @@ export default function RolesClient() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Card>
                             <CardContent>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -228,19 +240,19 @@ export default function RolesClient() {
                 <Card sx={{ mb: 3 }}>
                     <CardContent>
                         <Grid container spacing={2} alignItems="center">
-                            <Grid xs={12} sm={6} md={3}>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     placeholder="Search users..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     InputProps={{
-                                        startAdornment: <Search />,
+                                        startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
                                     }}
                                     size="small"
                                 />
                             </Grid>
-                            <Grid xs={12} sm={6} md={3}>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel id="role-filter-label">Role</InputLabel>
                                     <Select
@@ -251,14 +263,14 @@ export default function RolesClient() {
                                         onChange={(e) => setRoleFilter(e.target.value)}
                                     >
                                         <MenuItem value="">All Roles</MenuItem>
-                                        <MenuItem value="admin">Admin</MenuItem>
-                                        <MenuItem value="manager">Manager</MenuItem>
-                                        <MenuItem value="operator">Operator</MenuItem>
-                                        <MenuItem value="viewer">Viewer</MenuItem>
+                                        <MenuItem value="Admin">Admin</MenuItem>
+                                        <MenuItem value="Manager">Manager</MenuItem>
+                                        <MenuItem value="Operator">Operator</MenuItem>
+                                        <MenuItem value="Viewer">Viewer</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid xs={12} sm={6} md={3}>
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel id="status-filter-label">Status</InputLabel>
                                     <Select
@@ -275,9 +287,18 @@ export default function RolesClient() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid xs={12} sm={6} md={3}>
-                                <Button variant="contained" startIcon={<FilterList />} fullWidth>
-                                    Apply Filters
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<FilterList />}
+                                    fullWidth
+                                    onClick={() => {
+                                        setSearchTerm('');
+                                        setRoleFilter('');
+                                        setStatusFilter('');
+                                    }}
+                                >
+                                    Reset Filters
                                 </Button>
                             </Grid>
                         </Grid>
@@ -371,7 +392,7 @@ export default function RolesClient() {
             <TabPanel value={tabValue} index={1}>
                 {/* Roles Tab Content */}
                 <Grid container spacing={3}>
-                    <Grid xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <Card>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
@@ -386,7 +407,7 @@ export default function RolesClient() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <Card>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
@@ -401,7 +422,7 @@ export default function RolesClient() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <Card>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
@@ -419,8 +440,8 @@ export default function RolesClient() {
                 </Grid>
 
                 <Grid container spacing={3} sx={{ mt: 3 }}>
-                    {roles.map((role) => (
-                        <Grid xs={12} md={6} key={role.id}>
+                    {roles.map((role: any) => (
+                        <Grid size={{ xs: 12, md: 6 }} key={role.id}>
                             <Card sx={{ p: 2, cursor: 'pointer' }} onClick={() => setSelectedRole(role.name)}>
                                 <Typography variant="h6" gutterBottom>
                                     {role.name}

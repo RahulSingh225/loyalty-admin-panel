@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -23,7 +23,11 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Avatar
+    Avatar,
+    CircularProgress,
+    Divider,
+    Chip,
+    Stack
 } from '@mui/material';
 import {
     Search,
@@ -42,35 +46,75 @@ import {
     Email,
     ChevronRight,
     ExpandMore,
-    PersonOutline
+    PersonOutline,
+    Phone,
+    Email as EmailIcon,
+    LocationOn,
+    CalendarToday,
+    AccountBalance,
+    CreditCard,
+    Badge,
+    Store,
+    Business,
+    AssignmentInd
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { getMembersDataAction } from '@/actions/member-actions';
+import { getMembersDataAction, getMemberDetailsAction } from '@/actions/member-actions';
 
 export default function MembersClient() {
-    const [activeTab, setActiveTab] = useState(0); // 0: Electricians, 1: Retailers, 2: CSB, 3: Staff
+    const [levelTab, setLevelTab] = useState(0);
+    const [entityTab, setEntityTab] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedQuery, setDebouncedQuery] = useState('');
+    const [kycStatusFilter, setKycStatusFilter] = useState('All Status');
+    const [regionFilter, setRegionFilter] = useState('All Regions');
+
     const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [selectedMember, setSelectedMember] = useState<{ type: string, id: number, member: any } | null>(null);
+
+    const [kycModalOpen, setKycModalOpen] = useState(false);
+    const [selectedKycMember, setSelectedKycMember] = useState<any>(null);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedQuery(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
 
     const { data } = useQuery({
-        queryKey: ['members-data'],
-        queryFn: getMembersDataAction,
+        queryKey: ['members-data', debouncedQuery, kycStatusFilter, regionFilter],
+        queryFn: () => getMembersDataAction({
+            searchQuery: debouncedQuery,
+            kycStatus: kycStatusFilter,
+            region: regionFilter
+        }),
         staleTime: 60 * 1000,
     });
 
-    if (!data) return null;
+    const { data: memberDetails, isLoading: isLoadingDetails } = useQuery({
+        queryKey: ['member-details', selectedMember?.type, selectedMember?.id],
+        queryFn: () => selectedMember ? getMemberDetailsAction(selectedMember.type, selectedMember.id) : null,
+        enabled: !!selectedMember,
+    });
 
-    const tabs = [
-        { label: 'Electricians', key: 'electricians' },
-        { label: 'Retailers', key: 'retailers' },
-        { label: 'CSB', key: 'csb' },
-        { label: 'Staff', key: 'staff' },
-    ];
+    if (!data || !data.levels || data.levels.length === 0) return null;
 
-    const currentTabKey = tabs[activeTab].key as keyof typeof data;
-    const currentData = data[currentTabKey];
-    const stats = currentData.stats;
-    const members = currentData.list;
+    const currentLevel = data.levels[levelTab];
+    // Ensure entityTab is valid for currentLevel
+    const activeEntityTab = entityTab >= currentLevel.entities.length ? 0 : entityTab;
+    const currentEntity = currentLevel.entities[activeEntityTab];
+
+    if (!currentEntity) return null;
+
+    const stats = currentEntity.members.stats;
+    const members = currentEntity.members.list;
+
+    const handleLevelChange = (index: number) => {
+        setLevelTab(index);
+        setEntityTab(0);
+    };
 
     const handleMenuOpen = (id: string, event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl({ ...anchorEl, [id]: event.currentTarget });
@@ -78,6 +122,18 @@ export default function MembersClient() {
 
     const handleMenuClose = (id: string) => {
         setAnchorEl({ ...anchorEl, [id]: null });
+    };
+
+    const handleViewKyc = (member: any) => {
+        setSelectedKycMember(member);
+        setKycModalOpen(true);
+        handleMenuClose(`kyc-${member.id}`);
+    };
+
+    const handleViewDetails = (member: any) => {
+        setSelectedMember({ type: currentEntity.name, id: member.dbId, member });
+        setDetailsModalOpen(true);
+        handleMenuClose(`more-${member.id}`);
     };
 
     const getKycBadge = (status: string) => {
@@ -102,18 +158,32 @@ export default function MembersClient() {
 
     return (
         <Box>
-            {/* Header section is managed by Layout/TopBar but we add page-specific actions if needed */}
-            {/* Based on ref/14.htm, the header is handled differently, but we'll stick to our Layout */}
-
-            {/* Tabs */}
-            <div className="tabs mb-6">
-                {tabs.map((tab, index) => (
+            {/* Main Tabs (Levels) */}
+            <div className="tabs mb-4 px-1">
+                {data.levels.map((level: any, index: number) => (
                     <button
-                        key={tab.key}
-                        className={`tab ${activeTab === index ? 'active' : ''}`}
-                        onClick={() => setActiveTab(index)}
+                        key={level.id}
+                        className={`tab ${levelTab === index ? 'active' : ''}`}
+                        onClick={() => handleLevelChange(index)}
+                        style={{ fontSize: '0.9rem', padding: '8px 24px' }}
                     >
-                        {tab.label}
+                        {level.name}
+                    </button>
+                ))}
+            </div>
+
+            {/* Sub Tabs (Entities within Level) */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide px-1">
+                {currentLevel.entities.map((entity: any, index: number) => (
+                    <button
+                        key={entity.id}
+                        onClick={() => setEntityTab(index)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${activeEntityTab === index
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
+                            }`}
+                    >
+                        {entity.name}
                     </button>
                 ))}
             </div>
@@ -123,7 +193,7 @@ export default function MembersClient() {
                 <Grid size={{ xs: 12, md: 6, lg: 3 }}>
                     <div className="widget-card rounded-xl shadow p-6">
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Typography variant="subtitle2" color="text.secondary">Total {tabs[activeTab].label}</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">Total {currentEntity.name}</Typography>
                             <PersonOutline className="text-blue-500" />
                         </Box>
                         <Typography variant="h4" fontWeight="bold" mb={1}>{stats.total.toLocaleString()}</Typography>
@@ -181,7 +251,7 @@ export default function MembersClient() {
                         <TextField
                             fullWidth
                             size="small"
-                            placeholder={`Search ${tabs[activeTab].label.toLowerCase()}...`}
+                            placeholder={`Search ${currentEntity.name.toLowerCase()}...`}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             InputProps={{
@@ -194,7 +264,11 @@ export default function MembersClient() {
                         />
                     </Grid>
                     <Grid size={{ xs: 6, md: 2 }}>
-                        <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm">
+                        <select
+                            value={kycStatusFilter}
+                            onChange={(e) => setKycStatusFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                        >
                             <option>All Status</option>
                             <option>KYC Pending</option>
                             <option>KYC Approved</option>
@@ -203,7 +277,11 @@ export default function MembersClient() {
                         </select>
                     </Grid>
                     <Grid size={{ xs: 6, md: 2 }}>
-                        <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm">
+                        <select
+                            value={regionFilter}
+                            onChange={(e) => setRegionFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                        >
                             <option>All Regions</option>
                             <option>North</option>
                             <option>South</option>
@@ -225,7 +303,7 @@ export default function MembersClient() {
             {/* Member List */}
             <div className="widget-card rounded-xl shadow p-6">
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                    <Typography variant="h6" fontWeight="bold">{tabs[activeTab].label} List</Typography>
+                    <Typography variant="h6" fontWeight="bold">{currentEntity.name} List</Typography>
                     <Button
                         variant="outlined"
                         size="small"
@@ -241,14 +319,16 @@ export default function MembersClient() {
                         <TableHead>
                             <TableRow>
                                 <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
-                                    {activeTab === 0 ? 'Electrician' : activeTab === 1 ? 'Retailer' : activeTab === 2 ? 'CSB' : 'Staff'}
+                                    {currentEntity.name}
                                 </TableCell>
                                 <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>Contact</TableCell>
                                 <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
-                                    {activeTab === 1 ? 'Store' : activeTab === 2 ? 'Company' : activeTab === 3 ? 'Role' : 'Region'}
+                                    {currentEntity.name.toLowerCase().includes('retailer') ? 'Store' :
+                                        currentEntity.name.toLowerCase().includes('counter sales') ? 'Company' :
+                                            currentLevel.name.toLowerCase().includes('internal') ? 'Role' : 'Region'}
                                 </TableCell>
                                 <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>KYC Status</TableCell>
-                                {activeTab === 0 && <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>Joined</TableCell>}
+                                {currentEntity.name.toLowerCase().includes('electrician') && <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>Joined</TableCell>}
                                 <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -281,26 +361,26 @@ export default function MembersClient() {
                                         <Typography variant="caption" color="text.secondary">{member.email}</Typography>
                                     </TableCell>
                                     <TableCell>
-                                        {activeTab === 1 ? (
+                                        {currentEntity.name.toLowerCase().includes('retailer') ? (
                                             <>
-                                                <Typography variant="body2" fontWeight="medium">{member.storeName}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{member.location}</Typography>
+                                                <Typography variant="body2" fontWeight="medium">{member.storeName || 'N/A'}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{member.location || 'N/A'}</Typography>
                                             </>
-                                        ) : activeTab === 2 ? (
+                                        ) : currentEntity.name.toLowerCase().includes('counter sales') ? (
                                             <>
-                                                <Typography variant="body2" fontWeight="medium">{member.companyName}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{member.location}</Typography>
+                                                <Typography variant="body2" fontWeight="medium">{member.companyName || 'N/A'}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{member.location || 'N/A'}</Typography>
                                             </>
-                                        ) : activeTab === 3 ? (
-                                            <Typography variant="body2">{member.role}</Typography>
+                                        ) : currentLevel.name.toLowerCase().includes('internal') ? (
+                                            <Typography variant="body2">{member.role || 'N/A'}</Typography>
                                         ) : (
-                                            <Typography variant="body2">{member.regions}</Typography>
+                                            <Typography variant="body2">{member.regions || 'N/A'}</Typography>
                                         )}
                                     </TableCell>
                                     <TableCell>
                                         {getKycBadge(member.kycStatus)}
                                     </TableCell>
-                                    {activeTab === 0 && (
+                                    {currentEntity.name.toLowerCase().includes('electrician') && (
                                         <TableCell>
                                             <Typography variant="body2">{member.joinedDate}</Typography>
                                         </TableCell>
@@ -333,7 +413,7 @@ export default function MembersClient() {
                                                     <ListItemIcon><Cancel fontSize="small" sx={{ color: '#dc2626' }} /></ListItemIcon>
                                                     <ListItemText primary="Reject KYC" />
                                                 </MenuItem>
-                                                <MenuItem onClick={() => handleMenuClose(`kyc-${member.id}`)}>
+                                                <MenuItem onClick={() => handleViewKyc(member)}>
                                                     <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
                                                     <ListItemText primary="View Documents" />
                                                 </MenuItem>
@@ -388,7 +468,7 @@ export default function MembersClient() {
                                                 onClose={() => handleMenuClose(`more-${member.id}`)}
                                                 PaperProps={{ className: 'action-dropdown-menu' }}
                                             >
-                                                <MenuItem onClick={() => handleMenuClose(`more-${member.id}`)}>
+                                                <MenuItem onClick={() => handleViewDetails(member)}>
                                                     <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
                                                     <ListItemText primary="View Details" />
                                                 </MenuItem>
@@ -412,7 +492,7 @@ export default function MembersClient() {
                 {/* Pagination */}
                 <Box display="flex" justifyContent="space-between" alignItems="center" mt={4}>
                     <Typography variant="body2" color="text.secondary">
-                        Showing 1 to {members.length} of {stats.total.toLocaleString()} {tabs[activeTab].label.toLowerCase()}
+                        Showing 1 to {members.length} of {stats.total.toLocaleString()} {currentEntity.name.toLowerCase()}
                     </Typography>
                     <Box display="flex" gap={1}>
                         <Button variant="outlined" size="small" sx={{ textTransform: 'none', minWidth: 80 }}>Previous</Button>
@@ -423,6 +503,317 @@ export default function MembersClient() {
                     </Box>
                 </Box>
             </div>
+
+            {/* Member Details Modal */}
+            <Dialog
+                open={detailsModalOpen}
+                onClose={() => setDetailsModalOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ p: 0 }}>
+                    <Box sx={{
+                        background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+                        p: 4,
+                        color: 'white',
+                        position: 'relative'
+                    }}>
+                        <IconButton
+                            onClick={() => setDetailsModalOpen(false)}
+                            sx={{ position: 'absolute', right: 16, top: 16, color: 'white' }}
+                        >
+                            <Cancel />
+                        </IconButton>
+                        <Stack direction="row" spacing={3} alignItems="center">
+                            <Avatar
+                                sx={{
+                                    width: 80,
+                                    height: 80,
+                                    fontSize: '2rem',
+                                    fontWeight: 'bold',
+                                    bgcolor: selectedMember?.member?.avatarColor,
+                                    border: '4px solid rgba(255,255,255,0.2)'
+                                }}
+                            >
+                                {selectedMember?.member?.initials}
+                            </Avatar>
+                            <Box>
+                                <Typography variant="h5" fontWeight="bold" component="span">
+                                    {selectedMember?.member?.name}
+                                </Typography>
+                                <Typography variant="body1" sx={{ opacity: 0.9 }} component="span">
+                                    ID: {selectedMember?.member?.id}
+                                </Typography>
+                                <Box mt={1}>
+                                    <Chip
+                                        label={selectedMember?.member?.kycStatus}
+                                        size="small"
+                                        sx={{
+                                            bgcolor: selectedMember?.member?.kycStatus === 'Approved' ? '#10b981' : '#f59e0b',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            mr: 1
+                                        }}
+                                    />
+                                    <Chip
+                                        label={currentEntity.name}
+                                        size="small"
+                                        sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                                    />
+                                </Box>
+                            </Box>
+                        </Stack>
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ p: 4, bgcolor: '#f8fafc' }}>
+                    {isLoadingDetails ? (
+                        <Box display="flex" justifyContent="center" alignItems="center" py={10}>
+                            <CircularProgress size={40} />
+                        </Box>
+                    ) : memberDetails ? (
+                        <Grid container spacing={4}>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="h6" fontWeight="bold" mb={2} color="primary">Personal Information</Typography>
+                                <Stack spacing={2}>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <Phone color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Phone Number</Typography>
+                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).phone || 'N/A'}</Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <EmailIcon color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Email Address</Typography>
+                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).email || 'N/A'}</Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <CalendarToday color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Date of Birth</Typography>
+                                            <Typography variant="body1" fontWeight="medium">
+                                                {(memberDetails as any).dob ? new Date((memberDetails as any).dob).toLocaleDateString() : 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <AssignmentInd color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Gender</Typography>
+                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).gender || 'N/A'}</Typography>
+                                        </Box>
+                                    </Box>
+                                </Stack>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="h6" fontWeight="bold" mb={2} color="primary">Professional Details</Typography>
+                                <Stack spacing={2}>
+                                    {currentEntity.name.toLowerCase().includes('retailer') && (
+                                        <Box display="flex" alignItems="center" gap={2}>
+                                            <Store color="action" />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">Store Name</Typography>
+                                                <Typography variant="body1" fontWeight="medium">{(memberDetails as any).storeName || 'N/A'}</Typography>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                    {currentEntity.name.toLowerCase().includes('counter sales') && (
+                                        <Box display="flex" alignItems="center" gap={2}>
+                                            <Business color="action" />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">Company Name</Typography>
+                                                <Typography variant="body1" fontWeight="medium">{(memberDetails as any).companyName || 'N/A'}</Typography>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <LocationOn color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Location</Typography>
+                                            <Typography variant="body1" fontWeight="medium">
+                                                {(memberDetails as any).addressLine1 ? `${(memberDetails as any).addressLine1}, ` : ''}
+                                                {(memberDetails as any).city}, {(memberDetails as any).state} {(memberDetails as any).pincode}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <Badge color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Aadhaar Number</Typography>
+                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).aadhaar || 'N/A'}</Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                        <CreditCard color="action" />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">PAN Number</Typography>
+                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).pan || 'N/A'}</Typography>
+                                        </Box>
+                                    </Box>
+                                </Stack>
+                            </Grid>
+
+                            <Grid size={{ xs: 12 }}>
+                                <Divider sx={{ my: 2 }} />
+                                <Typography variant="h6" fontWeight="bold" mb={2} color="primary">Financial & KYC</Typography>
+                                <Grid container spacing={3}>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                        <Box p={2} sx={{ bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                                            <Typography variant="caption" color="text.secondary" display="block">Points Balance</Typography>
+                                            <Typography variant="h5" fontWeight="bold" color="primary.main">{(memberDetails as any).pointsBalance || 0}</Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                        <Box p={2} sx={{ bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                                            <Typography variant="caption" color="text.secondary" display="block">Total Earnings</Typography>
+                                            <Typography variant="h5" fontWeight="bold" color="success.main">₹{(memberDetails as any).totalEarnings || 0}</Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                        <Box p={2} sx={{ bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                                            <Typography variant="caption" color="text.secondary" display="block">Bank Status</Typography>
+                                            <Chip
+                                                label={(memberDetails as any).isBankValidated ? 'Validated' : 'Pending'}
+                                                color={(memberDetails as any).isBankValidated ? 'success' : 'warning'}
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        </Box>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+
+                            {(memberDetails as any).bankAccountNo && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Box p={3} sx={{ bgcolor: 'rgba(37, 99, 235, 0.05)', borderRadius: 3, border: '1px dashed #2563eb' }}>
+                                        <Typography variant="subtitle2" fontWeight="bold" mb={2} display="flex" alignItems="center" gap={1}>
+                                            <AccountBalance sx={{ fontSize: 18 }} color="primary" /> Bank Account Details
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                                <Typography variant="caption" color="text.secondary">Account Holder</Typography>
+                                                <Typography variant="body2" fontWeight="medium">{(memberDetails as any).bankAccountName || 'N/A'}</Typography>
+                                            </Grid>
+                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                                <Typography variant="caption" color="text.secondary">Account Number</Typography>
+                                                <Typography variant="body2" fontWeight="medium">{(memberDetails as any).bankAccountNo || 'N/A'}</Typography>
+                                            </Grid>
+                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                                <Typography variant="caption" color="text.secondary">IFSC Code</Typography>
+                                                <Typography variant="body2" fontWeight="medium">{(memberDetails as any).bankAccountIfsc || 'N/A'}</Typography>
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                </Grid>
+                            )}
+                        </Grid>
+                    ) : (
+                        <Box py={5} textAlign="center">
+                            <Typography color="text.secondary">No additional details found for this member.</Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 3, bgcolor: '#f8fafc' }}>
+                    <Button
+                        onClick={() => setDetailsModalOpen(false)}
+                        variant="outlined"
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        variant="contained"
+                        sx={{ textTransform: 'none', borderRadius: '8px', bgcolor: '#2563eb' }}
+                        startIcon={<Edit sx={{ fontSize: 18 }} />}
+                    >
+                        Edit Profile
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            {/* KYC Documents Modal */}
+            <Dialog
+                open={kycModalOpen}
+                onClose={() => setKycModalOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: '16px', p: 1 }
+                }}
+            >
+                <DialogTitle>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6" fontWeight="bold" component="span">KYC Documents - {selectedKycMember?.name}</Typography>
+                        <IconButton onClick={() => setKycModalOpen(false)} size="small">
+                            <Cancel />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={3} mt={1}>
+                        {[
+                            { title: 'Aadhaar Card', icon: <AssignmentInd sx={{ fontSize: 40, color: 'text.secondary' }} /> },
+                            { title: 'PAN Card', icon: <CreditCard sx={{ fontSize: 40, color: 'text.secondary' }} /> },
+                            { title: 'Address Proof', icon: <LocationOn sx={{ fontSize: 40, color: 'text.secondary' }} /> },
+                            { title: 'Business License', icon: <Business sx={{ fontSize: 40, color: 'text.secondary' }} /> }
+                        ].map((doc, idx) => (
+                            <Grid size={{ xs: 12, md: 6 }} key={idx}>
+                                <Typography variant="subtitle2" fontWeight="medium" mb={1}>{doc.title}</Typography>
+                                <Box
+                                    sx={{
+                                        border: '2px dashed #e2e8f0',
+                                        borderRadius: '12px',
+                                        p: 4,
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            bgcolor: 'rgba(37, 99, 235, 0.04)',
+                                            borderColor: '#2563eb'
+                                        }
+                                    }}
+                                >
+                                    {doc.icon}
+                                    <Typography variant="caption" display="block" color="text.secondary" mt={1}>
+                                        Click to view document
+                                    </Typography>
+                                </Box>
+                            </Grid>
+                        ))}
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, gap: 1 }}>
+                    <Button
+                        onClick={() => setKycModalOpen(false)}
+                        variant="outlined"
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        variant="contained"
+                        sx={{ textTransform: 'none', borderRadius: '8px', bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
+                        startIcon={<CheckCircle />}
+                    >
+                        Approve KYC
+                    </Button>
+                    <Button
+                        variant="contained"
+                        sx={{ textTransform: 'none', borderRadius: '8px', bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
+                        startIcon={<Cancel />}
+                    >
+                        Reject KYC
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

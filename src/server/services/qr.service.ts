@@ -37,9 +37,9 @@ class QrService {
         }
     }
 
-    async getQrHistory(page: number = 0, limit: number = 10) {
+    async getQrHistory(page: number = 0, limit: number = 10, filters?: { searchTerm?: string, status?: string }) {
         try {
-            const result = await inventoryBatchRepository.fetchAllInventoryBatches(page, limit);
+            const result = await inventoryBatchRepository.fetchAllInventoryBatches(page, limit, filters);
             return {
                 success: true,
                 data: result.batches,

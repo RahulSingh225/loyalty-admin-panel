@@ -10,25 +10,58 @@ import {
     counterSalesTransactions,
     redemptions,
     users,
-    redemptionStatuses
+    redemptionStatuses,
+    kycDocuments,
+    userTypeEntity
 } from "@/db/schema"
 import { sum, sql, desc, eq, and } from "drizzle-orm"
 
-export async function getFinanceDataAction() {
+export interface FinanceFilters {
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    status?: string;
+}
+
+export async function getFinanceDataAction(filters?: FinanceFilters) {
     try {
+        const { startDate, endDate, type, status } = filters || {};
+
+        // Helper to apply filters
+        const applyFilters = (table: any, dateField: any) => {
+            const conditions = [];
+            if (startDate) conditions.push(sql`${dateField} >= ${startDate}`);
+            if (endDate) conditions.push(sql`${dateField} <= ${endDate}`);
+            return conditions.length > 0 ? and(...conditions) : undefined;
+        };
+
         // 1. Overview Metrics Calculations
 
         // Total Points Issued (Sum of all earning transactions)
-        const [retailerSum] = await db.select({ value: sum(retailerTransactions.points) }).from(retailerTransactions);
-        const [electricianSum] = await db.select({ value: sum(electricianTransactions.points) }).from(electricianTransactions);
-        const [counterSalesSum] = await db.select({ value: sum(counterSalesTransactions.points) }).from(counterSalesTransactions);
+        const retailerConditions = applyFilters(retailerTransactions, retailerTransactions.createdAt);
+        const [retailerSum] = await db.select({ value: sum(retailerTransactions.points) })
+            .from(retailerTransactions)
+            .where(retailerConditions);
+
+        const electricianConditions = applyFilters(electricianTransactions, electricianTransactions.createdAt);
+        const [electricianSum] = await db.select({ value: sum(electricianTransactions.points) })
+            .from(electricianTransactions)
+            .where(electricianConditions);
+
+        const counterSalesConditions = applyFilters(counterSalesTransactions, counterSalesTransactions.createdAt);
+        const [counterSalesSum] = await db.select({ value: sum(counterSalesTransactions.points) })
+            .from(counterSalesTransactions)
+            .where(counterSalesConditions);
 
         const totalPointsIssued = Number(retailerSum?.value || 0) +
             Number(electricianSum?.value || 0) +
             Number(counterSalesSum?.value || 0);
 
         // Total Points Redeemed (Sum of pointsRedeemed from redemptions)
-        const [redemptionSum] = await db.select({ value: sum(redemptions.pointsRedeemed) }).from(redemptions);
+        const redemptionConditions = applyFilters(redemptions, redemptions.createdAt);
+        const [redemptionSum] = await db.select({ value: sum(redemptions.pointsRedeemed) })
+            .from(redemptions)
+            .where(redemptionConditions);
         const totalPointsRedeemed = Number(redemptionSum?.value || 0);
 
         // Active Points Value (Sum of pointsBalance from all stakeholder tables)
@@ -42,46 +75,75 @@ export async function getFinanceDataAction() {
 
         // 2. Fetch Recent Transactions (Combined Credits and Debits)
 
-        // Fetch latest earning transactions from all 3 stakeholder types
-        const latestRetailerTx = await db.select({
-            id: retailerTransactions.id,
-            date: retailerTransactions.createdAt,
-            points: retailerTransactions.points,
-            userId: retailerTransactions.userId,
-            type: sql<string>`'Credit'`,
-            status: sql<string>`'Completed'`
-        }).from(retailerTransactions).orderBy(desc(retailerTransactions.createdAt)).limit(10);
+        let latestRetailerTx = [];
+        let latestElectricianTx = [];
+        let latestCounterSalesTx = [];
+        let latestRedemptions = [];
 
-        const latestElectricianTx = await db.select({
-            id: electricianTransactions.id,
-            date: electricianTransactions.createdAt,
-            points: electricianTransactions.points,
-            userId: electricianTransactions.userId,
-            type: sql<string>`'Credit'`,
-            status: sql<string>`'Completed'`
-        }).from(electricianTransactions).orderBy(desc(electricianTransactions.createdAt)).limit(10);
+        if (!type || type === 'credit') {
+            latestRetailerTx = await db.select({
+                id: retailerTransactions.id,
+                date: retailerTransactions.createdAt,
+                points: retailerTransactions.points,
+                userId: retailerTransactions.userId,
+                type: sql<string>`'Credit'`,
+                status: sql<string>`'Completed'`
+            }).from(retailerTransactions)
+                .where(retailerConditions)
+                .orderBy(desc(retailerTransactions.createdAt)).limit(50);
 
-        const latestCounterSalesTx = await db.select({
-            id: counterSalesTransactions.id,
-            date: counterSalesTransactions.createdAt,
-            points: counterSalesTransactions.points,
-            userId: counterSalesTransactions.userId,
-            type: sql<string>`'Credit'`,
-            status: sql<string>`'Completed'`
-        }).from(counterSalesTransactions).orderBy(desc(counterSalesTransactions.createdAt)).limit(10);
+            latestElectricianTx = await db.select({
+                id: electricianTransactions.id,
+                date: electricianTransactions.createdAt,
+                points: electricianTransactions.points,
+                userId: electricianTransactions.userId,
+                type: sql<string>`'Credit'`,
+                status: sql<string>`'Completed'`
+            }).from(electricianTransactions)
+                .where(electricianConditions)
+                .orderBy(desc(electricianTransactions.createdAt)).limit(50);
 
-        const latestRedemptions = await db.select({
-            id: redemptions.id,
-            date: redemptions.createdAt,
-            points: redemptions.pointsRedeemed,
-            userId: redemptions.userId,
-            type: sql<string>`'Debit'`,
-            status: redemptionStatuses.name
-        })
-            .from(redemptions)
-            .leftJoin(redemptionStatuses, eq(redemptions.status, redemptionStatuses.id))
-            .orderBy(desc(redemptions.createdAt))
-            .limit(10);
+            latestCounterSalesTx = await db.select({
+                id: counterSalesTransactions.id,
+                date: counterSalesTransactions.createdAt,
+                points: counterSalesTransactions.points,
+                userId: counterSalesTransactions.userId,
+                type: sql<string>`'Credit'`,
+                status: sql<string>`'Completed'`
+            }).from(counterSalesTransactions)
+                .where(counterSalesConditions)
+                .orderBy(desc(counterSalesTransactions.createdAt)).limit(50);
+        }
+
+        if (!type || type === 'debit') {
+            const redConditions = [];
+            if (redemptionConditions) redConditions.push(redemptionConditions);
+            if (status) {
+                // Map status string to status name if needed, or assume it's ID
+                // For simplicity, let's just filter by redemptionStatus.name if possible
+            }
+
+            let query = db.select({
+                id: redemptions.id,
+                date: redemptions.createdAt,
+                points: redemptions.pointsRedeemed,
+                userId: redemptions.userId,
+                type: sql<string>`'Debit'`,
+                status: redemptionStatuses.name
+            })
+                .from(redemptions)
+                .leftJoin(redemptionStatuses, eq(redemptions.status, redemptionStatuses.id));
+
+            const whereConditions = [];
+            if (redemptionConditions) whereConditions.push(redemptionConditions);
+            if (status) whereConditions.push(eq(redemptionStatuses.name, status.charAt(0).toUpperCase() + status.slice(1)));
+
+            if (whereConditions.length > 0) {
+                latestRedemptions = await query.where(and(...whereConditions)).orderBy(desc(redemptions.createdAt)).limit(50);
+            } else {
+                latestRedemptions = await query.orderBy(desc(redemptions.createdAt)).limit(50);
+            }
+        }
 
         // Combine all, add prefixes to IDs to avoid collisions, and sort by date
         const rawTransactions = [
@@ -91,7 +153,7 @@ export async function getFinanceDataAction() {
             ...latestRedemptions.map(t => ({ ...t, id: `RED${t.id}`, points: Number(t.points) }))
         ]
             .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
-            .slice(0, 20); // Show up to 20 in the "full" list preview
+            .slice(0, 50);
 
         // Fetch User names for the combined list
         const formattedTransactions = await Promise.all(rawTransactions.map(async (tx) => {
@@ -103,12 +165,12 @@ export async function getFinanceDataAction() {
                 member: user?.name || 'Unknown',
                 amount: `₹${tx.points.toLocaleString()}`,
                 status: tx.status || 'Completed',
-                badgeColor: tx.type === 'Credit' ? 'badge-success' : (tx.status === 'Pending' ? 'badge-warning' : 'badge-danger'),
+                badgeColor: tx.type === 'Credit' ? 'badge-success' : (tx.status === 'Pending' ? 'badge-warning' : (tx.status === 'Failed' ? 'badge-danger' : 'badge-success')),
                 typeBadge: tx.type === 'Credit' ? 'badge-success' : 'badge-danger'
             };
         }));
 
-        // 3. Monthly Points Flow Analysis
+        // 3. Monthly Points Flow Analysis (Optional: could also be filtered)
         const issuedMonthlyResult = await db.execute(sql`
             SELECT 
                 TO_CHAR(created_at, 'Mon') as month,
@@ -158,9 +220,9 @@ export async function getFinanceDataAction() {
         return {
             overview: {
                 totalRevenue: 24567890,
-                pointsIssued: totalPointsIssued || 4523456,
-                pointsRedeemed: totalPointsRedeemed || 3210987,
-                activePointsValue: activePointsValue || 12345678,
+                pointsIssued: totalPointsIssued,
+                pointsRedeemed: totalPointsRedeemed,
+                activePointsValue: activePointsValue,
                 revenueTrend: {
                     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
                     data: [18000000, 19500000, 21000000, 19800000, 22000000, 23500000, 24500000, 23800000, 25200000, 24567890]
@@ -188,3 +250,52 @@ export async function getFinanceDataAction() {
         };
     }
 }
+
+export async function getComplianceDataAction(filters?: { status?: string, type?: string }) {
+    try {
+        const { status, type } = filters || {};
+
+        let query = db.select({
+            id: kycDocuments.id,
+            userId: kycDocuments.userId,
+            documentType: kycDocuments.documentType,
+            status: kycDocuments.verificationStatus,
+            rejectionReason: kycDocuments.rejectionReason,
+            createdAt: kycDocuments.createdAt,
+            userName: users.name,
+            userType: userTypeEntity.typeName
+        })
+            .from(kycDocuments)
+            .leftJoin(users, eq(kycDocuments.userId, users.id))
+            .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
+            .$dynamic();
+
+        const conditions = [];
+        if (status && status !== 'All Status') {
+            conditions.push(eq(kycDocuments.verificationStatus, status.toLowerCase()));
+        }
+        if (type && type !== 'All Stakeholders') {
+            conditions.push(eq(userTypeEntity.typeName, type));
+        }
+
+        if (conditions.length > 0) {
+            query = query.where(and(...conditions));
+        }
+
+        const data = await query.orderBy(desc(kycDocuments.createdAt)).limit(50);
+
+        return data.map(d => ({
+            id: `KYC-${d.id.toString().padStart(4, '0')}`,
+            member: d.userName || 'Unknown',
+            type: d.userType || 'N/A',
+            document: d.documentType,
+            status: d.status.charAt(0).toUpperCase() + d.status.slice(1),
+            date: d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '---',
+            badgeColor: d.status === 'verified' ? 'badge-success' : (d.status === 'pending' ? 'badge-warning' : (d.status === 'rejected' ? 'badge-danger' : 'badge-warning'))
+        }));
+    } catch (error) {
+        console.error("Error fetching compliance data:", error);
+        return [];
+    }
+}
+

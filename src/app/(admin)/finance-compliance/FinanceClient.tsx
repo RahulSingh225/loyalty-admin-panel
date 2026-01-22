@@ -33,7 +33,7 @@ import {
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
 import { useQuery } from '@tanstack/react-query'
-import { getFinanceDataAction } from '@/actions/finance-actions'
+import { getFinanceDataAction, getComplianceDataAction } from '@/actions/finance-actions'
 
 // Register ChartJS components
 ChartJS.register(
@@ -49,12 +49,46 @@ ChartJS.register(
 )
 
 export default function FinanceClient() {
-    const [activeTab, setActiveTab] = useState(0) // 0: Financial Overview, 1: Transactions
+    const [activeTab, setActiveTab] = useState(0) // 0: Financial Overview, 1: Transactions, 2: Compliance
+    const [filters, setFilters] = useState({
+        startDate: '',
+        endDate: '',
+        type: '',
+        status: ''
+    })
+    const [tempFilters, setTempFilters] = useState({
+        startDate: '',
+        endDate: '',
+        type: '',
+        status: ''
+    })
+
+    // Compliance Filters
+    const [compFilters, setCompFilters] = useState({
+        status: 'All Status',
+        type: 'All Stakeholders'
+    })
 
     const { data: financeData, isLoading, error } = useQuery({
-        queryKey: ['finance-data'],
-        queryFn: () => getFinanceDataAction()
+        queryKey: ['finance-data', filters],
+        queryFn: () => getFinanceDataAction(filters)
     })
+
+    const { data: complianceData, isLoading: isLoadingComp } = useQuery({
+        queryKey: ['compliance-data', compFilters],
+        queryFn: () => getComplianceDataAction(compFilters),
+        enabled: activeTab === 2
+    })
+
+    const handleApplyFilters = () => {
+        setFilters(tempFilters)
+    }
+
+    const handleResetFilters = () => {
+        const reset = { startDate: '', endDate: '', type: '', status: '' }
+        setTempFilters(reset)
+        setFilters(reset)
+    }
 
     // --- CHART DATA (Derived from Action or Default) ---
     const revenueTrendData = {
@@ -131,6 +165,7 @@ export default function FinanceClient() {
                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="finance tabs">
                     <Tab label="Financial Overview" sx={{ textTransform: 'none', fontWeight: 500 }} />
                     <Tab label="Transactions" sx={{ textTransform: 'none', fontWeight: 500 }} />
+                    <Tab label="Compliance & KYC" sx={{ textTransform: 'none', fontWeight: 500 }} />
                 </Tabs>
             </Box>
 
@@ -275,39 +310,66 @@ export default function FinanceClient() {
                 {activeTab === 1 && (
                     <Box>
                         <div className="widget-card p-6 w-full mb-6">
-                            {/* TRANSACTION FILTERS */}
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-medium text-gray-700">Date Range</label>
-                                    <input type="date" className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                    <label className="text-sm font-medium text-gray-700">Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={tempFilters.startDate}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
+                                        className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <label className="text-sm font-medium text-gray-700">End Date</label>
-                                    <input type="date" className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                    <input
+                                        type="date"
+                                        value={tempFilters.endDate}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
+                                        className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-medium text-gray-700">Transaction Type</label>
-                                    <select className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                                    <label className="text-sm font-medium text-gray-700">Type</label>
+                                    <select
+                                        value={tempFilters.type}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, type: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                    >
                                         <option value="">All Types</option>
                                         <option value="credit">Credit</option>
                                         <option value="debit">Debit</option>
-                                        <option value="refund">Refund</option>
-                                        <option value="adjustment">Adjustment</option>
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <label className="text-sm font-medium text-gray-700">Status</label>
-                                    <select className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                                    <select
+                                        value={tempFilters.status}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, status: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                    >
                                         <option value="">All Status</option>
                                         <option value="completed">Completed</option>
                                         <option value="pending">Pending</option>
                                         <option value="failed">Failed</option>
-                                        <option value="cancelled">Cancelled</option>
                                     </select>
                                 </div>
-                                <div className="flex items-end">
-                                    <Button variant="contained" size="small" fullWidth sx={{ py: 1.1, textTransform: 'none', backgroundColor: '#2563eb' }}>
-                                        <i className="fas fa-filter mr-2"></i> Apply Filters
+                                <div className="flex items-end gap-2">
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        onClick={handleApplyFilters}
+                                        sx={{ py: 1.1, textTransform: 'none', backgroundColor: '#2563eb' }}
+                                    >
+                                        Apply
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={handleResetFilters}
+                                        sx={{ py: 1.1, textTransform: 'none' }}
+                                    >
+                                        Reset
                                     </Button>
                                 </div>
                             </div>
@@ -399,6 +461,80 @@ export default function FinanceClient() {
                                     <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Next</button>
                                 </div>
                             </Box>
+                        </div>
+                    </Box>
+                )}
+            </div>
+
+            {/* TAB CONTENT: COMPLIANCE & KYC */}
+            <div role="tabpanel" hidden={activeTab !== 2}>
+                {activeTab === 2 && (
+                    <Box>
+                        <div className="widget-card p-6 w-full mb-6">
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+                                <Typography variant="h6" fontWeight="bold">KYC Compliance List</Typography>
+                                <Box display="flex" gap={2}>
+                                    <select
+                                        value={compFilters.status}
+                                        onChange={(e) => setCompFilters({ ...compFilters, status: e.target.value })}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                    >
+                                        <option>All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="verified">Verified</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                    <select
+                                        value={compFilters.type}
+                                        onChange={(e) => setCompFilters({ ...compFilters, type: e.target.value })}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                    >
+                                        <option>All Stakeholders</option>
+                                        <option>Electrician</option>
+                                        <option>Retailer</option>
+                                        <option>Counter Sales</option>
+                                    </select>
+                                </Box>
+                            </Box>
+
+                            <TableContainer sx={{ border: '1px solid #eef2f6', borderRadius: '12px', overflow: 'hidden' }}>
+                                <Table>
+                                    <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Document</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {isLoadingComp ? (
+                                            <TableRow><TableCell colSpan={6} align="center"><CircularProgress size={24} /></TableCell></TableRow>
+                                        ) : complianceData?.length === 0 ? (
+                                            <TableRow><TableCell colSpan={6} align="center">No records found</TableCell></TableRow>
+                                        ) : (
+                                            complianceData?.map((item: any) => (
+                                                <TableRow key={item.id} hover>
+                                                    <TableCell sx={{ fontWeight: 500 }}>{item.member}</TableCell>
+                                                    <TableCell>{item.type}</TableCell>
+                                                    <TableCell>{item.document}</TableCell>
+                                                    <TableCell>
+                                                        <span className={`badge ${item.badgeColor}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>{item.date}</TableCell>
+                                                    <TableCell>
+                                                        <Button size="small" sx={{ textTransform: 'none' }}>Verify</Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
                         </div>
                     </Box>
                 )}

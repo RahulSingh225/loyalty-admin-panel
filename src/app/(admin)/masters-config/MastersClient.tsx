@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Card,
     CardContent,
@@ -26,12 +26,13 @@ import {
     CircularProgress,
     Alert,
     Box
+    , Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
 import { ChevronDown, ChevronRight, Download, Upload, Edit, Delete } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { getMastersDataAction, updateStakeholderConfigAction, upsertPointsMatrixRuleAction, type SkuNode } from '@/actions/masters-actions';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMastersDataAction, updateStakeholderConfigAction, upsertPointsMatrixRuleAction, upsertSkuPointConfigAction, updateSkuPointConfigForEntityAction, type SkuNode, deletePointsMatrixRuleAction } from '@/actions/masters-actions';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -40,7 +41,7 @@ function TabPanel(props: { children?: React.ReactNode; index: number; value: num
     return value === index ? <>{children}</> : null;
 }
 
-function TreeView({ data }: { data: SkuNode[] }) {
+function TreeView({ data, onSelect, selectedId }: { data: SkuNode[]; onSelect?: (id: string) => void; selectedId?: string | null }) {
     const [open, setOpen] = useState<{ [key: string]: boolean }>({});
 
     const toggle = (key: string) => setOpen((p) => ({ ...p, [key]: !p[key] }));
@@ -53,11 +54,16 @@ function TreeView({ data }: { data: SkuNode[] }) {
             <i className="fas fa-file text-gray-500 mr-2" />
         );
 
+        const isSelected = selectedId === node.id;
+
         return (
             <li>
                 <div
-                    className="flex items-center py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                    onClick={() => hasChildren && toggle(path)}
+                    className={`flex items-center py-1 cursor-pointer rounded ${isSelected ? 'bg-blue-50 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                    onClick={() => {
+                        if (hasChildren) toggle(path);
+                        onSelect && onSelect(node.id);
+                    }}
                 >
                     {hasChildren ? (
                         <span className="mr-1">
@@ -99,12 +105,139 @@ export default function MastersClient() {
     });
 
     const [tab, setTab] = useState(0);
+    const queryClient = useQueryClient();
+
+    // Stakeholder config form state
+    const [selectedStakeholderId, setSelectedStakeholderId] = useState<string | null>(null);
+    const [stakeholderMaxDailyScans, setStakeholderMaxDailyScans] = useState<number>(50);
+    const [stakeholderKycLevel, setStakeholderKycLevel] = useState<string>('Basic');
+    const [stakeholderChannelIds, setStakeholderChannelIds] = useState<number[]>([]);
+    const [stakeholderSaveStatus, setStakeholderSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+    const [confirmOpen, setConfirmOpen] = useState(false);
+
+    const stakeholderMutation = useMutation({
+        mutationFn: (payload: Parameters<typeof updateStakeholderConfigAction>[0]) => updateStakeholderConfigAction(payload),
+        onMutate: () => setStakeholderSaveStatus('saving'),
+        onSuccess: () => {
+            setStakeholderSaveStatus('success');
+            queryClient.invalidateQueries({ queryKey: ['masters-data'] });
+            setTimeout(() => setStakeholderSaveStatus('idle'), 2000);
+        },
+        onError: () => {
+            setStakeholderSaveStatus('error');
+            setTimeout(() => setStakeholderSaveStatus('idle'), 2000);
+        }
+    });
+
+    // SKU Points form state
+    const [skuStakeholder, setSkuStakeholder] = useState<string>('All');
+    const [skuCategory, setSkuCategory] = useState<string>('Electrical Products');
+    const [skuSubCategory, setSkuSubCategory] = useState<string>('Wires & Cables');
+    const [skuGroup, setSkuGroup] = useState<string>('Household Wires');
+    const [pointsPerScan, setPointsPerScan] = useState<number>(10);
+    const [maxScansPerDay, setMaxScansPerDay] = useState<number>(5);
+    const [validFrom, setValidFrom] = useState<string>('');
+    const [validTo, setValidTo] = useState<string>('');
+    const [isActive, setIsActive] = useState<boolean>(true);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+    // Points Matrix (Rule) form state - updated to match SKU point config style
+    const [pmRuleId, setPmRuleId] = useState<number | null>(null);
+    const [pmName, setPmName] = useState<string>('');
+    const [pmClientId, setPmClientId] = useState<number>(1); // replace with real client context when available
+    const [pmUserTypeId, setPmUserTypeId] = useState<number | 'All'>('All');
+    const [pmSkuEntityId, setPmSkuEntityId] = useState<number | null>(null);
+    const [pmSkuVariantId, setPmSkuVariantId] = useState<number | null>(null);
+    const [pmActionType, setPmActionType] = useState<string>('FLAT_OVERRIDE');
+    const [pmActionValue, setPmActionValue] = useState<number>(10);
+    const [pmValidFrom, setPmValidFrom] = useState<string>('');
+    const [pmValidTo, setPmValidTo] = useState<string>('');
+    const [pmIsActive, setPmIsActive] = useState<boolean>(true);
+    const [pmDescription, setPmDescription] = useState<string>('');
+    const [pmSaveStatus, setPmSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+    const pointsRuleMutation = useMutation({
+        mutationFn: (payload: Parameters<typeof upsertPointsMatrixRuleAction>[0]) => upsertPointsMatrixRuleAction(payload),
+        onMutate: () => setPmSaveStatus('saving'),
+        onSuccess: () => {
+            setPmSaveStatus('success');
+            queryClient.invalidateQueries({ queryKey: ['masters-data'] });
+            setTimeout(() => setPmSaveStatus('idle'), 2000);
+        },
+        onError: () => {
+            setPmSaveStatus('error');
+            setTimeout(() => setPmSaveStatus('idle'), 2000);
+        }
+    });
+
+    const skuConfigMutation = useMutation({
+        mutationFn: (payload: Parameters<typeof updateSkuPointConfigForEntityAction>[0]) => updateSkuPointConfigForEntityAction(payload),
+        onMutate: () => setSaveStatus('saving'),
+        onSuccess: () => {
+            setSaveStatus('success');
+            queryClient.invalidateQueries({ queryKey: ['masters-data'] });
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        },
+        onError: () => {
+            setSaveStatus('error');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        }
+    });
+
+    const deleteRuleMutation = useMutation({
+        mutationFn: (id: number) => deletePointsMatrixRuleAction(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['masters-data'] });
+        }
+    });
+
+    const updateBasePointsMutation = useMutation({
+        mutationFn: (payload: Parameters<typeof upsertSkuPointConfigAction>[0]) => upsertSkuPointConfigAction(payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['masters-data'] });
+            setEditModalOpen(false);
+        }
+    });
+
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [selectedRule, setSelectedRule] = useState<any>(null);
+    const [editBasePoints, setEditBasePoints] = useState<number>(0);
+    const [editBaseMaxScans, setEditBaseMaxScans] = useState<number>(5);
+
+    // flatten skuHierarchy for selection (id, label, depth)
+    const flatten = (nodes: any[], depth = 0, out: { id: string; label: string; depth: number; levelName: string; code?: string }[] = []) => {
+        for (const n of nodes) {
+            out.push({ id: n.id, label: n.label, depth, levelName: n.levelName, code: n.code });
+            if (n.children && n.children.length) flatten(n.children, depth + 1, out);
+        }
+        return out;
+    };
+
+    const flattenedEntities = flatten(data?.skuHierarchy || []);
+    const [selectedEntityId, setSelectedEntityId] = useState<string | null>(flattenedEntities[0]?.id || null);
 
     if (isLoading) return <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>;
     if (error) return <Alert severity="error">Failed to load configuration data</Alert>;
 
     const stakeholderTypes = data?.stakeholderTypes || [];
     const pointsMatrix = data?.pointsMatrix || [];
+
+    useEffect(() => {
+        if (!selectedStakeholderId && stakeholderTypes.length > 0) {
+            setSelectedStakeholderId(stakeholderTypes[0].id);
+        }
+    }, [stakeholderTypes, selectedStakeholderId]);
+
+    useEffect(() => {
+        if (selectedStakeholderId) {
+            const s = stakeholderTypes.find(st => st.id === selectedStakeholderId);
+            if (s) {
+                setStakeholderMaxDailyScans(s.maxDailyScans || 50);
+                setStakeholderKycLevel(s.requiredKycLevel || 'Basic');
+                const channels = s.allowedRedemptionChannels || [];
+                setStakeholderChannelIds(channels.map((c) => Number(c)));
+            }
+        }
+    }, [selectedStakeholderId, stakeholderTypes]);
 
     return (
         <main className="flex-1 overflow-y-auto p-6">
@@ -143,12 +276,12 @@ export default function MastersClient() {
                                         <TableCell>Max Daily Scans</TableCell>
                                         <TableCell>KYC Level</TableCell>
                                         <TableCell>Status</TableCell>
-                                        <TableCell>Actions</TableCell>
+                                        {/* <TableCell>Actions</TableCell> */}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {stakeholderTypes.map((row) => (
-                                        <TableRow key={row.id}>
+                                        <TableRow key={row.id} hover>
                                             <TableCell>{row.id}</TableCell>
                                             <TableCell>{row.code || row.name}</TableCell>
                                             <TableCell>{row.desc}</TableCell>
@@ -161,10 +294,10 @@ export default function MastersClient() {
                                                     size="small"
                                                 />
                                             </TableCell>
-                                            <TableCell>
-                                                <IconButton size="small"><Edit size={16} /></IconButton>
+                                            {/* <TableCell>
+                                                <IconButton size="small" onClick={() => { setSelectedStakeholderId(row.id); setTab(0); }}><Edit size={16} /></IconButton>
                                                 <IconButton size="small" color="error"><Delete size={16} /></IconButton>
-                                            </TableCell>
+                                            </TableCell> */}
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -181,18 +314,17 @@ export default function MastersClient() {
                                 <form className="space-y-4">
                                     <FormControl fullWidth>
                                         <InputLabel>Stakeholder Type</InputLabel>
-                                        <Select defaultValue="Retailer" label="Stakeholder Type">
-                                            <MenuItem value="Retailer">Retailer</MenuItem>
-                                            <MenuItem value="CSB">CSB</MenuItem>
-                                            <MenuItem value="Electrician">Electrician</MenuItem>
-                                            <MenuItem value="Distributor">Distributor</MenuItem>
+                                        <Select value={selectedStakeholderId || ''} label="Stakeholder Type" onChange={(e) => setSelectedStakeholderId(e.target.value)}>
+                                            {stakeholderTypes.map((s) => (
+                                                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                                            ))}
                                         </Select>
                                     </FormControl>
 
-                                    <TextField label="Max Daily Scans" type="number" defaultValue={50} fullWidth />
+                                    <TextField label="Max Daily Scans" type="number" value={stakeholderMaxDailyScans} onChange={(e) => setStakeholderMaxDailyScans(Number(e.target.value))} fullWidth />
                                     <FormControl fullWidth>
                                         <InputLabel>Required KYC Level</InputLabel>
-                                        <Select defaultValue="Basic" label="Required KYC Level">
+                                        <Select value={stakeholderKycLevel} label="Required KYC Level" onChange={(e) => setStakeholderKycLevel(e.target.value)}>
                                             <MenuItem value="Basic">Basic</MenuItem>
                                             <MenuItem value="Standard">Standard</MenuItem>
                                             <MenuItem value="Advanced">Advanced</MenuItem>
@@ -201,17 +333,74 @@ export default function MastersClient() {
 
                                     <div className="space-y-2">
                                         <Typography variant="body2" color="textSecondary">Allowed Redemption Channels</Typography>
-                                        <FormControlLabel control={<Checkbox defaultChecked />} label="UPI" />
-                                        <FormControlLabel control={<Checkbox defaultChecked />} label="Bank Transfer" />
-                                        <FormControlLabel control={<Checkbox />} label="Voucher" />
+                                        {(data?.redemptionChannels || []).map((ch: any) => (
+                                            <FormControlLabel
+                                                key={ch.id}
+                                                control={
+                                                    <Checkbox
+                                                        checked={stakeholderChannelIds.includes(Number(ch.id))}
+                                                        onChange={(e) => {
+                                                            setStakeholderChannelIds((prev) => {
+                                                                const id = Number(ch.id);
+                                                                if (e.target.checked) return Array.from(new Set([...prev, id]));
+                                                                return prev.filter((x) => x !== id);
+                                                            });
+                                                        }}
+                                                    />
+                                                }
+                                                label={ch.name}
+                                            />
+                                        ))}
                                     </div>
 
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="outlined">Cancel</Button>
-                                        <Button variant="contained" color="primary">
-                                            Save Configuration
+                                        <Button variant="outlined" onClick={() => {
+                                            // reset to selected stakeholder values
+                                            if (selectedStakeholderId) {
+                                                const s = stakeholderTypes.find(st => st.id === selectedStakeholderId);
+                                                if (s) {
+                                                    setStakeholderMaxDailyScans(s.maxDailyScans || 50);
+                                                    setStakeholderKycLevel(s.requiredKycLevel || 'Basic');
+                                                    const channels = s.allowedRedemptionChannels || [];
+                                                    setStakeholderChannels({ upi: channels.includes(1), bank: channels.includes(2), voucher: channels.includes(3) });
+                                                }
+                                            }
+                                        }}>Cancel</Button>
+                                        <Button variant="contained" color="primary" onClick={() => {
+                                            if (!selectedStakeholderId) return;
+                                            setConfirmOpen(true);
+                                        }} disabled={stakeholderMutation.isLoading}>
+                                            {stakeholderMutation.isLoading ? 'Saving...' : 'Save Configuration'}
                                         </Button>
+                                        {stakeholderSaveStatus === 'success' && <Typography variant="body2" color="success.main" sx={{ ml: 2 }}>Saved</Typography>}
+                                        {stakeholderSaveStatus === 'error' && <Typography variant="body2" color="error.main" sx={{ ml: 2 }}>Save failed</Typography>}
                                     </div>
+                                    <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+                                        <DialogTitle>Confirm Save</DialogTitle>
+                                        <DialogContent>
+                                            <Typography>Are you sure you want to save changes to this stakeholder configuration?</Typography>
+                                        </DialogContent>
+                                        <DialogActions>
+                                            <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                onClick={() => {
+                                                    if (!selectedStakeholderId) return;
+                                                    stakeholderMutation.mutate({
+                                                        id: Number(selectedStakeholderId),
+                                                        maxDailyScans: stakeholderMaxDailyScans,
+                                                        requiredKycLevel: stakeholderKycLevel,
+                                                        allowedRedemptionChannels: stakeholderChannelIds
+                                                    });
+                                                    setConfirmOpen(false);
+                                                }}
+                                                disabled={stakeholderMutation.isLoading}
+                                            >
+                                                {stakeholderMutation.isLoading ? 'Saving...' : 'Confirm'}
+                                            </Button>
+                                        </DialogActions>
+                                    </Dialog>
                                 </form>
                             </CardContent>
                         </Card>
@@ -290,43 +479,60 @@ export default function MastersClient() {
                                 <form className="space-y-4">
                                     <FormControl fullWidth>
                                         <InputLabel>Stakeholder Type</InputLabel>
-                                        <Select defaultValue="All" label="Stakeholder Type">
+                                        <Select value={skuStakeholder} label="Stakeholder Type" onChange={(e) => setSkuStakeholder(e.target.value)}>
                                             <MenuItem value="All">All Stakeholders</MenuItem>
                                             {stakeholderTypes.map((t) => (
-                                                <MenuItem key={t.id} value={t.name}>{t.name}</MenuItem>
+                                                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
                                             ))}
                                         </Select>
                                     </FormControl>
+
+
                                     <FormControl fullWidth>
-                                        <InputLabel>SKU Category</InputLabel>
-                                        <Select defaultValue="Electrical Products" label="SKU Category">
-                                            <MenuItem value="Electrical Products">Electrical Products</MenuItem>
-                                            <MenuItem value="Lighting Products">Lighting Products</MenuItem>
-                                        </Select>
+                                        <InputLabel shrink>Apply To Entity</InputLabel>
+                                        <Box sx={{ maxHeight: 260, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1, mt: 1 }}>
+                                            <TreeView data={data?.skuHierarchy || []} selectedId={selectedEntityId} onSelect={(id) => setSelectedEntityId(id)} />
+                                        </Box>
+                                        <Typography variant="caption" sx={{ mt: 1 }}>
+                                            Selected: {selectedEntityId ? (flattenedEntities.find(f => f.id === selectedEntityId)?.label || selectedEntityId) : 'None'}
+                                        </Typography>
                                     </FormControl>
-                                    <FormControl fullWidth>
-                                        <InputLabel>SKU Sub-Category</InputLabel>
-                                        <Select defaultValue="Wires & Cables" label="SKU Sub-Category">
-                                            <MenuItem value="Wires & Cables">Wires & Cables</MenuItem>
-                                            <MenuItem value="Switches & Sockets">Switches & Sockets</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                    <FormControl fullWidth>
-                                        <InputLabel>SKU Group</InputLabel>
-                                        <Select defaultValue="Household Wires" label="SKU Group">
-                                            <MenuItem value="Household Wires">Household Wires</MenuItem>
-                                            <MenuItem value="Industrial Wires">Industrial Wires</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                    <TextField label="Points per Scan" type="number" defaultValue={10} fullWidth />
-                                    <TextField label="Max Scans per Day" type="number" defaultValue={5} fullWidth />
-                                    <TextField label="Valid From" type="date" InputLabelProps={{ shrink: true }} fullWidth />
-                                    <TextField label="Valid To" type="date" InputLabelProps={{ shrink: true }} fullWidth />
+                                    <TextField label="Points per Scan" type="number" value={pointsPerScan} onChange={(e) => setPointsPerScan(Number(e.target.value))} fullWidth />
+                                    <TextField label="Max Scans per Day" type="number" value={maxScansPerDay} onChange={(e) => setMaxScansPerDay(Number(e.target.value))} fullWidth />
+                                    <TextField label="Valid From" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+                                    <TextField label="Valid To" type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+                                    <FormControlLabel control={<Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />} label="Active" />
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="outlined">Cancel</Button>
-                                        <Button variant="contained" color="primary">
-                                            Save Configuration
+                                        <Button variant="outlined" onClick={() => {
+                                            // reset form
+                                            setSkuStakeholder('All');
+                                            setSkuCategory('Electrical Products');
+                                            setSkuSubCategory('Wires & Cables');
+                                            setSkuGroup('Household Wires');
+                                            setPointsPerScan(10);
+                                            setMaxScansPerDay(5);
+                                            setValidFrom('');
+                                            setValidTo('');
+                                            setIsActive(true);
+                                        }}>Cancel</Button>
+                                        <Button variant="contained" color="primary" onClick={() => {
+                                            // clientId is assumed; replace with real client context if available
+                                            skuConfigMutation.mutate({
+                                                clientId: 1,
+                                                userTypeId: skuStakeholder === 'All' ? undefined : Number(skuStakeholder),
+                                                skuEntityId: undefined,
+                                                skuVariantId: undefined,
+                                                pointsPerUnit: pointsPerScan,
+                                                maxScansPerDay: maxScansPerDay,
+                                                validFrom: validFrom || undefined,
+                                                validTo: validTo || undefined,
+                                                isActive: isActive
+                                            });
+                                        }} disabled={skuConfigMutation.isLoading}>
+                                            {skuConfigMutation.isLoading ? 'Saving...' : 'Save Configuration'}
                                         </Button>
+                                        {saveStatus === 'success' && <Typography variant="body2" color="success" sx={{ ml: 2 }}>Saved</Typography>}
+                                        {saveStatus === 'error' && <Typography variant="body2" color="error" sx={{ ml: 2 }}>Save failed</Typography>}
                                     </div>
                                 </form>
                             </CardContent>
@@ -425,7 +631,14 @@ export default function MastersClient() {
                                                 />
                                             </TableCell>
                                             <TableCell>{r.stakeholder}</TableCell>
-                                            <TableCell>{r.category}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', textTransform: 'uppercase', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                    {r.categoryHeader}
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                                    {r.categoryItem}
+                                                </Typography>
+                                            </TableCell>
                                             <TableCell>{r.base}</TableCell>
                                             <TableCell>{r.mult}</TableCell>
                                             <TableCell>{r.from}</TableCell>
@@ -442,8 +655,20 @@ export default function MastersClient() {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                <IconButton size="small"><Edit size={16} /></IconButton>
-                                                <IconButton size="small" color="error"><Delete size={16} /></IconButton>
+                                                {r.ruleType === 'Base' ? (
+                                                    <IconButton size="small" onClick={() => {
+                                                        setSelectedRule(r);
+                                                        setEditBasePoints(r.rawValue || 0);
+                                                        setEditBaseMaxScans(r.maxScansPerDay || 5);
+                                                        setEditModalOpen(true);
+                                                    }}><Edit size={16} /></IconButton>
+                                                ) : (
+                                                    <IconButton size="small" color="error" onClick={() => {
+                                                        if (confirm('Are you sure you want to delete this rule?')) {
+                                                            deleteRuleMutation.mutate(Number(r.id.replace('RULE-', '')));
+                                                        }
+                                                    }}><Delete size={16} /></IconButton>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -452,54 +677,194 @@ export default function MastersClient() {
                         </CardContent>
                     </Card>
 
+                    <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="xs" fullWidth>
+                        <DialogTitle>Edit Base Points Configuration</DialogTitle>
+                        <DialogContent>
+                            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Stakeholder: {selectedRule?.stakeholder} | Item: {selectedRule?.category}
+                                </Typography>
+                                <TextField
+                                    label="Base Points"
+                                    type="number"
+                                    fullWidth
+                                    value={editBasePoints}
+                                    onChange={(e) => setEditBasePoints(Number(e.target.value))}
+                                />
+                                <TextField
+                                    label="Max Scans Per Day"
+                                    type="number"
+                                    fullWidth
+                                    value={editBaseMaxScans}
+                                    onChange={(e) => setEditBaseMaxScans(Number(e.target.value))}
+                                />
+                            </Box>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => setEditModalOpen(false)}>Cancel</Button>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => {
+                                    if (selectedRule) {
+                                        updateBasePointsMutation.mutate({
+                                            id: Number(selectedRule.id.replace('CFG-', '')),
+                                            clientId: 1, // Assume client 1 for now
+                                            pointsPerUnit: editBasePoints,
+                                            maxScansPerDay: editBaseMaxScans,
+                                            isActive: true
+                                        });
+                                    }
+                                }}
+                            >
+                                Save Changes
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Add/Edit Rule Form */}
                         <Card>
                             <CardHeader title={<Typography variant="h6">Add/Edit Points Matrix Rule</Typography>} />
                             <CardContent>
                                 <form className="space-y-4">
+                                    <TextField label="Rule Name" value={pmName} onChange={(e) => setPmName(e.target.value)} fullWidth />
+
                                     <FormControl fullWidth>
                                         <InputLabel>Stakeholder Type</InputLabel>
-                                        <Select defaultValue="All" label="Stakeholder Type">
-                                            <MenuItem value="All">All</MenuItem>
-                                            <MenuItem value="Retailer">Retailer</MenuItem>
-                                            <MenuItem value="CSB">CSB</MenuItem>
-                                            <MenuItem value="Electrician">Electrician</MenuItem>
-                                            <MenuItem value="Distributor">Distributor</MenuItem>
+                                        <Select value={pmUserTypeId} label="Stakeholder Type" onChange={(e) => setPmUserTypeId(e.target.value as any)}>
+                                            <MenuItem value={'All'}>All</MenuItem>
+                                            {stakeholderTypes.map((s) => (
+                                                <MenuItem key={s.id} value={Number(s.id)}>{s.name}</MenuItem>
+                                            ))}
                                         </Select>
                                     </FormControl>
+
                                     <FormControl fullWidth>
-                                        <InputLabel>SKU Category</InputLabel>
-                                        <Select defaultValue="All" label="SKU Category">
-                                            <MenuItem value="All">All</MenuItem>
-                                            <MenuItem value="Electrical Products">Electrical Products</MenuItem>
-                                            <MenuItem value="Lighting Products">Lighting Products</MenuItem>
+                                        <InputLabel>Apply To SKU Entity</InputLabel>
+                                        <Select value={pmSkuEntityId ?? ''} label="Apply To SKU Entity" onChange={(e) => setPmSkuEntityId(e.target.value ? Number(e.target.value) : null)}>
+                                            <MenuItem value="">-- Select Entity (optional) --</MenuItem>
+                                            {flattenedEntities.map(f => {
+                                                const depth = f.depth;
+                                                const fontWeight = depth === 0 ? 700 : depth === 1 ? 500 : 400;
+                                                const color = depth === 0 ? 'text.primary' : depth === 1 ? 'text.secondary' : 'text.disabled';
+                                                const bgColor = depth === 0 ? 'rgba(0,0,0,0.04)' : 'transparent';
+
+                                                return (
+                                                    <MenuItem
+                                                        key={f.id}
+                                                        value={Number(f.id)}
+                                                        sx={{
+                                                            pl: depth * 2 + 2,
+                                                            bgcolor: bgColor,
+                                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.08)' }
+                                                        }}
+                                                    >
+                                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: 2 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        color: 'primary.main',
+                                                                        mr: 1,
+                                                                        fontWeight: 600,
+                                                                        fontSize: '0.65rem',
+                                                                        textTransform: 'uppercase',
+                                                                        letterSpacing: 0.5
+                                                                    }}
+                                                                >
+                                                                    {f.levelName}
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        fontWeight: fontWeight,
+                                                                        color: color,
+                                                                        fontSize: depth === 0 ? '1rem' : '0.875rem'
+                                                                    }}
+                                                                >
+                                                                    {f.label}
+                                                                </Typography>
+                                                            </Box>
+                                                            {f.code && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        color: 'primary.main',
+                                                                        bgcolor: 'primary.light',
+                                                                        px: 0.8,
+                                                                        py: 0.2,
+                                                                        borderRadius: 1,
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 700,
+                                                                        opacity: 0.9
+                                                                    }}
+                                                                >
+                                                                    {f.code}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </MenuItem>
+                                                );
+                                            })}
                                         </Select>
                                     </FormControl>
-                                    <TextField label="Base Points" type="number" defaultValue={10} fullWidth />
-                                    <TextField label="Multiplier" type="number" defaultValue={1.0} inputProps={{ step: 0.1 }} fullWidth />
-                                    <TextField label="Effective From" type="date" InputLabelProps={{ shrink: true }} fullWidth />
-                                    <TextField label="Effective To" type="date" InputLabelProps={{ shrink: true }} fullWidth />
+
+                                    <TextField label="SKU Variant ID (optional)" type="number" value={pmSkuVariantId ?? ''} onChange={(e) => setPmSkuVariantId(e.target.value ? Number(e.target.value) : null)} fullWidth />
+
                                     <FormControl fullWidth>
-                                        <InputLabel>Status</InputLabel>
-                                        <Select defaultValue="Active" label="Status">
-                                            <MenuItem value="Active">Active</MenuItem>
-                                            <MenuItem value="Inactive">Inactive</MenuItem>
-                                            <MenuItem value="Scheduled">Scheduled</MenuItem>
+                                        <InputLabel>Action Type</InputLabel>
+                                        <Select value={pmActionType} label="Action Type" onChange={(e) => setPmActionType(e.target.value)}>
+                                            <MenuItem value="FLAT_OVERRIDE">Flat Override</MenuItem>
+                                            <MenuItem value="PERCENTAGE_ADD">Percentage Add</MenuItem>
+                                            <MenuItem value="FIXED_ADD">Fixed Add</MenuItem>
                                         </Select>
                                     </FormControl>
-                                    <TextField
-                                        label="Rule Description"
-                                        multiline
-                                        rows={2}
-                                        placeholder="e.g. Special bonus for festival season"
-                                        fullWidth
-                                    />
+
+                                    <TextField label="Action Value" type="number" value={pmActionValue} onChange={(e) => setPmActionValue(Number(e.target.value))} fullWidth />
+
+                                    <TextField label="Effective From" type="date" value={pmValidFrom} onChange={(e) => setPmValidFrom(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+                                    <TextField label="Effective To" type="date" value={pmValidTo} onChange={(e) => setPmValidTo(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+
+                                    <TextField label="Description" multiline rows={2} value={pmDescription} onChange={(e) => setPmDescription(e.target.value)} fullWidth />
+
+                                    <FormControlLabel control={<Checkbox checked={pmIsActive} onChange={(e) => setPmIsActive(e.target.checked)} />} label="Active" />
+
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="outlined">Cancel</Button>
-                                        <Button variant="contained" color="primary">
-                                            Save Rule
+                                        <Button variant="outlined" onClick={() => {
+                                            // reset form
+                                            setPmRuleId(null);
+                                            setPmName('');
+                                            setPmUserTypeId('All');
+                                            setPmSkuEntityId(null);
+                                            setPmSkuVariantId(null);
+                                            setPmActionType('FLAT_OVERRIDE');
+                                            setPmActionValue(10);
+                                            setPmValidFrom('');
+                                            setPmValidTo('');
+                                            setPmIsActive(true);
+                                            setPmDescription('');
+                                        }}>Cancel</Button>
+                                        <Button variant="contained" color="primary" onClick={() => {
+                                            pointsRuleMutation.mutate({
+                                                id: pmRuleId ?? undefined,
+                                                name: pmName || `Rule ${Date.now()}`,
+                                                clientId: pmClientId,
+                                                userTypeId: pmUserTypeId === 'All' ? undefined : Number(pmUserTypeId),
+                                                skuEntityId: pmSkuEntityId ?? undefined,
+                                                skuVariantId: pmSkuVariantId ?? undefined,
+                                                actionType: pmActionType,
+                                                actionValue: pmActionValue,
+                                                description: pmDescription,
+                                                isActive: pmIsActive,
+                                                validFrom: pmValidFrom || undefined,
+                                                validTo: pmValidTo || undefined,
+                                            });
+                                        }} disabled={pointsRuleMutation.isLoading}>
+                                            {pointsRuleMutation.isLoading ? 'Saving...' : 'Save Rule'}
                                         </Button>
+                                        {pmSaveStatus === 'success' && <Typography variant="body2" color="success" sx={{ ml: 2 }}>Saved</Typography>}
+                                        {pmSaveStatus === 'error' && <Typography variant="body2" color="error" sx={{ ml: 2 }}>Save failed</Typography>}
                                     </div>
                                 </form>
                             </CardContent>

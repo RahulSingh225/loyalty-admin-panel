@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { userTypeEntity, skuPointConfig, skuPointRules, skuVariant, skuEntity, skuLevelMaster, retailerTransactions, electricianTransactions, counterSalesTransactions } from '@/db/schema';
+import { userTypeEntity, skuPointConfig, skuPointRules, skuVariant, skuEntity, skuLevelMaster, redemptionChannels, retailerTransactions, electricianTransactions, counterSalesTransactions } from '@/db/schema';
 import { eq, desc, sql as sqlTag } from 'drizzle-orm';
 
 export interface StakeholderType {
@@ -18,7 +18,8 @@ export interface StakeholderType {
 export interface PointsRule {
     id: string;
     stakeholder: string;
-    category: string;
+    categoryHeader: string;
+    categoryItem: string;
     base: string;
     mult: string;
     from: string;
@@ -26,6 +27,7 @@ export interface PointsRule {
     ruleType: 'Base' | 'Override';
     maxScansPerDay?: number;
     description?: string;
+    rawValue?: number;
 }
 
 export interface SkuNode {
@@ -85,13 +87,15 @@ export async function getMastersDataAction() {
         const configRules: PointsRule[] = configs.map(c => ({
             id: `CFG-${c.id}`,
             stakeholder: c.userType || 'All',
-            category: c.entityName || c.variantName || 'General',
+            categoryHeader: c.entityName || 'General',
+            categoryItem: c.variantName || 'All Variants',
             base: c.points ? `${c.points} Pts` : '0 Pts',
             mult: '1.0x',
             from: c.validFrom ? new Date(c.validFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             status: c.isActive ? 'Active' : 'Inactive',
             ruleType: 'Base',
-            maxScansPerDay: c.maxScansPerDay || 5
+            maxScansPerDay: c.maxScansPerDay || 5,
+            rawValue: Number(c.points)
         }));
 
         // 3. Fetch Points Rules (Override Rules)
@@ -106,24 +110,41 @@ export async function getMastersDataAction() {
                 actionValue: skuPointRules.actionValue,
                 validFrom: skuPointRules.validFrom,
                 isActive: skuPointRules.isActive,
-                description: skuPointRules.description
+                description: skuPointRules.description,
+                parentEntityName: sqlTag.raw('parent_entity.name') as any
             })
             .from(skuPointRules)
             .leftJoin(userTypeEntity, eq(skuPointRules.userTypeId, userTypeEntity.id))
             .leftJoin(skuVariant, eq(skuPointRules.skuVariantId, skuVariant.id))
-            .leftJoin(skuEntity, eq(skuPointRules.skuEntityId, skuEntity.id));
+            .leftJoin(skuEntity, eq(skuPointRules.skuEntityId, skuEntity.id))
+            .leftJoin(sqlTag.raw('sku_entity parent_entity') as any, eq(skuEntity.parentEntityId, sqlTag.raw('parent_entity.id')));
+
         console.log(rules.length);
-        const overrideRules: PointsRule[] = rules.map(r => ({
-            id: `RULE-${r.id}`,
-            stakeholder: r.userType || 'All',
-            category: r.skuEntityName || r.skuVariantName || 'General',
-            base: r.actionType === 'FLAT_OVERRIDE' ? `${r.actionValue} Pts` : '---',
-            mult: r.actionType === 'PERCENTAGE_ADD' ? `+${r.actionValue}%` : r.actionType === 'FIXED_ADD' ? `+${r.actionValue} Pts` : '---',
-            from: r.validFrom ? new Date(r.validFrom).toISOString().split('T')[0] : '---',
-            status: r.isActive ? 'Active' : 'Inactive',
-            ruleType: 'Override',
-            description: r.description || ''
-        }));
+        const overrideRules: PointsRule[] = rules.map(r => {
+            let header = 'General';
+            let item = 'All SKUs';
+
+            if (r.skuVariantName) {
+                header = r.skuEntityName || 'General';
+                item = r.skuVariantName;
+            } else if (r.skuEntityName) {
+                header = (r as any).parentEntityName || 'Category';
+                item = r.skuEntityName;
+            }
+
+            return {
+                id: `RULE-${r.id}`,
+                stakeholder: r.userType || 'All',
+                categoryHeader: header,
+                categoryItem: item,
+                base: r.actionType === 'FLAT_OVERRIDE' ? `${r.actionValue} Pts` : '---',
+                mult: r.actionType === 'PERCENTAGE_ADD' ? `+${r.actionValue}%` : r.actionType === 'FIXED_ADD' ? `+${r.actionValue} Pts` : '---',
+                from: r.validFrom ? new Date(r.validFrom).toISOString().split('T')[0] : '---',
+                status: r.isActive ? 'Active' : 'Inactive',
+                ruleType: 'Override',
+                description: r.description || ''
+            };
+        });
 
         // Combine
         const pointsMatrix = [...configRules, ...overrideRules];
@@ -154,6 +175,10 @@ export async function getMastersDataAction() {
         };
 
         const skuHierarchy = buildSkuTree(skuEntities);
+
+        // Fetch redemption channels for UI
+        const redemptionChannelsRows = await db.select({ id: redemptionChannels.id, name: redemptionChannels.name, isActive: redemptionChannels.isActive }).from(redemptionChannels).orderBy(desc(redemptionChannels.id));
+        const redemptionChannelsList = redemptionChannelsRows.map(r => ({ id: Number(r.id), name: r.name, isActive: Boolean(r.isActive) }));
 
         // 5. Fetch SKU Performance (Aggregate scans from all transaction tables)
         const performanceData = await db
@@ -194,7 +219,8 @@ export async function getMastersDataAction() {
             stakeholderTypes,
             pointsMatrix,
             skuHierarchy,
-            topSkus
+            topSkus,
+            redemptionChannels: redemptionChannelsList
         };
 
     } catch (error) {
@@ -279,5 +305,115 @@ export async function upsertPointsMatrixRuleAction(data: {
     } catch (error) {
         console.error("Error upserting points matrix rule:", error);
         return { success: false, error: "Failed to save rule" };
+    }
+}
+
+export async function upsertSkuPointConfigAction(data: {
+    id?: number;
+    clientId: number;
+    userTypeId?: number;
+    skuEntityId?: number;
+    skuVariantId?: number;
+    pointsPerUnit: number;
+    maxScansPerDay?: number;
+    validFrom?: string;
+    validTo?: string;
+    isActive: boolean;
+}) {
+    try {
+        if (data.id) {
+            await db.update(skuPointConfig)
+                .set({
+                    clientId: data.clientId,
+                    userTypeId: data.userTypeId,
+
+                    skuVariantId: data.skuVariantId,
+                    pointsPerUnit: data.pointsPerUnit.toString(),
+                    maxScansPerDay: data.maxScansPerDay,
+                    validFrom: data.validFrom ? new Date(data.validFrom).toUTCString() : null,
+                    validTo: data.validTo ? new Date(data.validTo).toUTCString() : null,
+                    isActive: data.isActive,
+                })
+                .where(eq(skuPointConfig.id, data.id));
+        } else {
+            await db.insert(skuPointConfig).values({
+                clientId: data.clientId,
+                userTypeId: data.userTypeId,
+                skuEntityId: data.skuEntityId,
+                skuVariantId: data.skuVariantId,
+                pointsPerUnit: data.pointsPerUnit.toString(),
+                maxScansPerDay: data.maxScansPerDay,
+                validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                validTo: data.validTo ? new Date(data.validTo) : null,
+                isActive: data.isActive,
+            });
+        }
+        return { success: true };
+    } catch (error) {
+        console.error("Error upserting SKU point config:", error);
+        return { success: false, error: "Failed to save SKU point config" };
+    }
+}
+
+export async function updateSkuPointConfigForEntityAction(data: {
+    clientId: number;
+    userTypeId?: number;
+    entityId: number;
+    pointsPerUnit: number;
+    maxScansPerDay?: number;
+    validFrom?: string;
+    validTo?: string;
+    isActive: boolean;
+}) {
+    try {
+        // Use a recursive CTE in the DB to collect subtree entity ids, then select variant ids under them
+        const variantRows = await db.select({ id: sqlTag.raw('t.id') as any }).from(sqlTag.raw(`(
+            WITH RECURSIVE subtree AS (
+                SELECT id FROM sku_entity WHERE id = ${data.entityId}
+                UNION ALL
+                SELECT e.id FROM sku_entity e JOIN subtree s ON e.parent_entity_id = s.id
+            )
+            SELECT v.id FROM sku_variant v WHERE v.sku_entity_id IN (SELECT id FROM subtree)
+        ) as t`));
+
+        const variantIds = variantRows.map(v => Number((v as any).id));
+
+        if (variantIds.length === 0) {
+            return { success: false, error: 'No SKU variants found under selected entity' };
+        }
+
+        // fetch existing skuPointConfig rows for these variants and client
+        const existingConfigs = await db.select({ id: skuPointConfig.id, skuVariantId: skuPointConfig.skuVariantId, clientId: skuPointConfig.clientId }).from(skuPointConfig);
+        const configsToUpdate = existingConfigs.filter(c => variantIds.includes(Number((c as any).skuVariantId)) && Number((c as any).clientId) === Number(data.clientId));
+
+        if (configsToUpdate.length === 0) {
+            return { success: false, error: 'No existing SKU point configs to update for selected entity and client' };
+        }
+
+        // update each existing config
+        for (const cfg of configsToUpdate) {
+            await db.update(skuPointConfig).set({
+                pointsPerUnit: data.pointsPerUnit.toString(),
+                maxScansPerDay: data.maxScansPerDay,
+                validFrom: data.validFrom ? new Date(data.validFrom).toUTCString() : null,
+                validTo: data.validTo ? new Date(data.validTo).toUTCString() : null,
+                isActive: data.isActive
+            }).where(eq(skuPointConfig.id, cfg.id));
+        }
+
+        return { success: true, updated: configsToUpdate.length };
+    } catch (error) {
+        console.error('Error updating SKU point configs for entity:', error);
+        return { success: false, error: 'Failed to update SKU point configs' };
+    }
+}
+
+export async function deletePointsMatrixRuleAction(id: number) {
+    try {
+        await db.delete(skuPointRules).where(eq(skuPointRules.id, id));
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting points matrix rule:", error);
+        return { success: false, error: "Failed to delete rule" };
     }
 }

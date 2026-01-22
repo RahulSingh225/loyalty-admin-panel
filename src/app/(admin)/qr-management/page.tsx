@@ -191,12 +191,27 @@ export default function QRGeneration() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalCount, setTotalCount] = useState(0);
 
+  // New states for batch filters
+  const [batchSearch, setBatchSearch] = useState('');
+  const [batchStatus, setBatchStatus] = useState('');
+  const [debouncedBatchSearch, setDebouncedBatchSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedBatchSearch(batchSearch);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [batchSearch]);
+
   const loadQrBatches = async () => {
     setLoadingBatches(true);
     try {
-      const result = await fetchQrHistory(page, rowsPerPage);
+      const result = await fetchQrHistory(page, rowsPerPage, {
+        searchTerm: debouncedBatchSearch,
+        status: batchStatus
+      });
       if (result.success) {
-        setBatches(result.data || []); // Ensure data is an array
+        setBatches(result.data || []);
         setTotalCount(result.total || 0);
       } else {
         console.error('Failed to load batches:', result.message);
@@ -210,7 +225,7 @@ export default function QRGeneration() {
 
   useEffect(() => {
     loadQrBatches();
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, debouncedBatchSearch, batchStatus]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -389,9 +404,31 @@ export default function QRGeneration() {
         {/* QR Batches Section */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              QR Batches
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                QR Batches
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  placeholder="Search SKU..."
+                  size="small"
+                  value={batchSearch}
+                  onChange={(e) => setBatchSearch(e.target.value)}
+                />
+                <TextField
+                  select
+                  label="Status"
+                  size="small"
+                  sx={{ minWidth: 120 }}
+                  value={batchStatus}
+                  onChange={(e) => setBatchStatus(e.target.value)}
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="Active">Active</MenuItem>
+                  <MenuItem value="Inactive">Inactive</MenuItem>
+                </TextField>
+              </Box>
+            </Box>
 
             <TableContainer sx={{ mt: 2 }}>
               <Table>

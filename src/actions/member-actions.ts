@@ -7,9 +7,10 @@ import {
     counterSales,
     users,
     userTypeEntity,
-    approvalStatuses
+    approvalStatuses,
+    userTypeLevelMaster
 } from "@/db/schema"
-import { desc, eq, and, sql, ilike, count } from "drizzle-orm"
+import { desc, eq, and, sql, ilike, count, or } from "drizzle-orm"
 
 export interface MemberBase {
     id: string;
@@ -22,24 +23,7 @@ export interface MemberBase {
     kycStatus: 'Pending' | 'Approved' | 'Rejected';
     status: 'Active' | 'Inactive' | 'Blocked';
     regions?: string;
-}
-
-export interface ElectricianMember extends MemberBase {
-    joinedDate: string;
-}
-
-export interface RetailerMember extends MemberBase {
-    storeName: string;
-    location: string;
-}
-
-export interface CSBMember extends MemberBase {
-    companyName: string;
-    location: string;
-}
-
-export interface StaffMember extends MemberBase {
-    role: string;
+    joinedDate?: string;
 }
 
 export interface MemberStats {
@@ -53,23 +37,25 @@ export interface MemberStats {
     activeTodayTrend: string;
 }
 
-export interface MembersData {
-    electricians: {
-        list: ElectricianMember[];
-        stats: MemberStats;
-    };
-    retailers: {
-        list: RetailerMember[];
-        stats: MemberStats;
-    };
-    csb: {
-        list: CSBMember[];
-        stats: MemberStats;
-    };
-    staff: {
-        list: StaffMember[];
-        stats: MemberStats;
-    };
+export interface MemberFilters {
+    searchQuery?: string;
+    kycStatus?: string;
+    region?: string;
+}
+
+export interface MemberHierarchy {
+    levels: {
+        id: number;
+        name: string;
+        entities: {
+            id: number;
+            name: string;
+            members: {
+                list: MemberBase[];
+                stats: MemberStats;
+            };
+        }[];
+    }[];
 }
 
 function getInitials(name: string) {
@@ -84,188 +70,103 @@ function getRandomColor(id: number) {
     return colors[id % colors.length];
 }
 
-export async function getMembersDataAction(): Promise<MembersData> {
+export async function getMembersDataAction(filters?: MemberFilters): Promise<MemberHierarchy> {
     try {
-        // 1. Fetch Electricians
-        const electricList = await db.select({
-            id: electricians.id,
-            uniqueId: electricians.uniqueId,
-            name: electricians.name,
-            phone: electricians.phone,
-            email: electricians.email,
-            isKycVerified: electricians.isKycVerified,
-            state: electricians.state,
-            city: electricians.city,
-        })
-            .from(electricians)
-            .limit(50);
+        const { searchQuery, kycStatus, region } = filters || {};
 
-        const mappedElectricians: ElectricianMember[] = electricList.map(e => ({
-            id: e.uniqueId || `ELE-${e.id}`,
-            dbId: e.id,
-            name: e.name || 'Unknown',
-            initials: getInitials(e.name || 'Unknown'),
-            avatarColor: getRandomColor(e.id),
-            phone: e.phone,
-            email: e.email || '',
-            kycStatus: e.isKycVerified ? 'Approved' : 'Pending',
-            status: 'Active',
-            regions: `${e.city || ''}, ${e.state || ''}`,
-            joinedDate: 'Oct 24, 2023'
-        }));
+        // 1. Fetch Levels and Entities
+        const levels = await db.select().from(userTypeLevelMaster).orderBy(userTypeLevelMaster.levelNo);
+        const entities = await db.select().from(userTypeEntity).where(eq(userTypeEntity.isActive, true));
 
-        // 2. Fetch Retailers
-        const retailList = await db.select({
-            id: retailers.id,
-            uniqueId: retailers.uniqueId,
-            name: retailers.name,
-            phone: retailers.phone,
-            email: retailers.email,
-            isKycVerified: retailers.isKycVerified,
-            state: retailers.state,
-            city: retailers.city,
-        })
-            .from(retailers)
-            .limit(50);
-
-        const mappedRetailers: RetailerMember[] = retailList.map(r => ({
-            id: r.uniqueId || `RET-${r.id}`,
-            dbId: r.id,
-            name: r.name || 'Unknown',
-            initials: getInitials(r.name || 'Unknown'),
-            avatarColor: getRandomColor(r.id),
-            phone: r.phone,
-            email: r.email || '',
-            kycStatus: r.isKycVerified ? 'Approved' : 'Pending',
-            status: 'Active',
-            storeName: 'Unknown Store',
-            location: `${r.city || ''}, ${r.state || ''}`
-        }));
-
-        // 3. Fetch CSB (Counter Sales)
-        const csbList = await db.select({
-            id: counterSales.id,
-            uniqueId: counterSales.uniqueId,
-            name: counterSales.name,
-            phone: counterSales.phone,
-            email: counterSales.email,
-            isKycVerified: counterSales.isKycVerified,
-            state: counterSales.state,
-            city: counterSales.city,
-        })
-            .from(counterSales)
-            .limit(50);
-
-        const mappedCSB: CSBMember[] = csbList.map(c => ({
-            id: c.uniqueId || `CSB-${c.id}`,
-            dbId: c.id,
-            name: c.name || 'Unknown',
-            initials: getInitials(c.name || 'Unknown'),
-            avatarColor: getRandomColor(c.id),
-            phone: c.phone,
-            email: c.email || '',
-            kycStatus: c.isKycVerified ? 'Approved' : 'Pending',
-            status: 'Active',
-            companyName: 'Unknown Company',
-            location: `${c.city || ''}, ${c.state || ''}`
-        }));
-
-        // 4. Fetch Staff (Admin Users)
-        const staffList = await db.select({
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            phone: users.phone,
-            role: userTypeEntity.typeName
-        })
-            .from(users)
-            .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
-            .where(sql`${userTypeEntity.typeName} NOT IN ('Retailer', 'Electrician', 'Counter Sales')`)
-            .limit(50);
-
-        const mappedStaff: StaffMember[] = staffList.map(s => ({
-            id: `STF-${s.id}`,
-            dbId: s.id,
-            name: s.name || 'Unknown Staff',
-            initials: getInitials(s.name || 'Unknown Staff'),
-            avatarColor: getRandomColor(s.id),
-            phone: s.phone || '',
-            email: s.email || '',
-            kycStatus: 'Approved',
-            status: 'Active',
-            role: s.role || 'Staff'
-        }));
-
-        // Stats Real Counts
-        const [eleCount] = await db.select({ count: count() }).from(electricians);
-        const [retCount] = await db.select({ count: count() }).from(retailers);
-        const [csCount] = await db.select({ count: count() }).from(counterSales);
-        const [stfCount] = await db.select({ count: count() }).from(users).leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id)).where(sql`${userTypeEntity.typeName} NOT IN ('Retailer', 'Electrician', 'Counter Sales')`);
-
-
-        return {
-            electricians: {
-                list: mappedElectricians,
-                stats: {
-                    total: Number(eleCount.count),
-                    totalTrend: '+47',
-                    kycPending: 28,
-                    kycPendingTrend: '+5',
-                    kycApproved: 1189,
-                    kycApprovedRate: '95.3%',
-                    activeToday: 342,
-                    activeTodayTrend: '+12%'
-                }
-            },
-            retailers: {
-                list: mappedRetailers,
-                stats: {
-                    total: Number(retCount.count),
-                    totalTrend: '+23',
-                    kycPending: 15,
-                    kycPendingTrend: '+3',
-                    kycApproved: 831,
-                    kycApprovedRate: '97.1%',
-                    activeToday: 428,
-                    activeTodayTrend: '+8%'
-                }
-            },
-            csb: {
-                list: mappedCSB,
-                stats: {
-                    total: Number(csCount.count),
-                    totalTrend: '+8',
-                    kycPending: 5,
-                    kycPendingTrend: '+2',
-                    kycApproved: 119,
-                    kycApprovedRate: '96%',
-                    activeToday: 87,
-                    activeTodayTrend: '+5%'
-                }
-            },
-            staff: {
-                list: mappedStaff,
-                stats: {
-                    total: Number(stfCount.count),
-                    totalTrend: '+2',
-                    kycPending: 0,
-                    kycPendingTrend: '0',
-                    kycApproved: Number(stfCount.count),
-                    kycApprovedRate: '100%',
-                    activeToday: 12,
-                    activeTodayTrend: '+2%'
-                }
-            }
+        // 2. Prepare hierarchical structure
+        const hierarchy: MemberHierarchy = {
+            levels: levels.map(l => ({
+                id: l.id,
+                name: l.levelName,
+                entities: entities
+                    .filter(e => e.levelId === l.id)
+                    .map(e => ({
+                        id: e.id,
+                        name: e.typeName,
+                        members: { list: [], stats: { total: 0, totalTrend: '', kycPending: 0, kycPendingTrend: '', kycApproved: 0, kycApprovedRate: '', activeToday: 0, activeTodayTrend: '' } }
+                    }))
+            }))
         };
 
+        // 3. Fetch users and group them
+        let usersQuery = db.select({
+            id: users.id,
+            name: users.name,
+            phone: users.phone,
+            email: users.email,
+            roleId: users.roleId,
+            isSuspended: users.isSuspended,
+            createdAt: users.createdAt,
+        })
+            .from(users)
+            .$dynamic();
+
+        const conditions = [];
+        if (searchQuery) {
+            conditions.push(or(
+                ilike(users.name, `%${searchQuery}%`),
+                ilike(users.phone, `%${searchQuery}%`),
+                ilike(users.email, `%${searchQuery}%`)
+            ));
+        }
+
+        if (conditions.length > 0) {
+            usersQuery = usersQuery.where(and(...conditions));
+        }
+
+        const allUsers = await usersQuery.limit(500);
+
+        // 4. Populate hierarchy
+        hierarchy.levels.forEach(level => {
+            level.entities.forEach(entity => {
+                const entityUsers = allUsers.filter(u => u.roleId === entity.id);
+
+                entity.members.list = entityUsers.map(u => ({
+                    id: `USR${u.id.toString().padStart(3, '0')}`,
+                    dbId: u.id,
+                    name: u.name || 'Unknown',
+                    initials: getInitials(u.name || 'Unknown'),
+                    avatarColor: getRandomColor(u.id),
+                    phone: u.phone || '',
+                    email: u.email || '',
+                    kycStatus: 'Approved',
+                    status: u.isSuspended ? 'Inactive' : 'Active',
+                    regions: '---',
+                    joinedDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '---'
+                }));
+
+                entity.members.stats = {
+                    total: entityUsers.length,
+                    totalTrend: '+0',
+                    kycPending: 0,
+                    kycPendingTrend: '0',
+                    kycApproved: entityUsers.length,
+                    kycApprovedRate: '100%',
+                    activeToday: Math.floor(entityUsers.length * 0.3),
+                    activeTodayTrend: '+0'
+                };
+            });
+        });
+
+        return hierarchy;
     } catch (error) {
         console.error("Error in getMembersDataAction:", error);
         throw error;
     }
 }
 
-// Deprecated old action for compatibility
-export async function getMembersAction() {
-    const data = await getMembersDataAction();
-    return data.electricians.list;
+export async function getMemberDetailsAction(type: string, id: number) {
+    try {
+        // Simple fetch from users for now
+        const result = await db.select().from(users).where(eq(users.id, id));
+        return result[0];
+    } catch (error) {
+        console.error("Error in getMemberDetailsAction:", error);
+        throw error;
+    }
 }
