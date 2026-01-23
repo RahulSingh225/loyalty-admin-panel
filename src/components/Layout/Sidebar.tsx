@@ -60,10 +60,10 @@ const menuItems: NavigationItem[] = [
   { text: 'Role Management', icon: <AdminPanelSettings />, path: '/role-management' },
   //{ text: 'Integrations', icon: <IntegrationInstructions />, path: '/integrations' },
   //{ text: 'Reports', icon: <Report />, path: '/reports' },
-  //{ text: 'Process', icon: <Build />, path: '/process' },
+  { text: 'Process', icon: <Build />, path: '/process' },
   { text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
   { text: 'Members', icon: <Group />, path: '/members' },
-  //{ text: 'Configuration', icon: <Tune />, path: '/configuration' }
+  { text: 'Configuration', icon: <Tune />, path: '/configuration' }
 ]
 
 interface SidebarProps {

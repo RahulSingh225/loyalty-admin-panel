@@ -1,5 +1,5 @@
 import { db } from "@/db/index";
-import { InventoryBatch } from "@/db/schema";
+import { tblInventoryBatch as inventoryBatch } from "@/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { CustomError } from "../../types";
 
@@ -13,17 +13,34 @@ class InventoryBatchRepository {
         });
     }
 
-    async fetchAllInventoryBatches(page: number, limit: number): Promise<{ batches: any[], total: number }> {
+    async fetchAllInventoryBatches(page: number, limit: number, filters?: { searchTerm?: string, status?: string }): Promise<{ batches: any[], total: number }> {
         try {
             const offset = (page) * limit;
+            const { searchTerm, status } = filters || {};
 
             return await db.transaction(async (tx) => {
-                const totalResult = await tx.select({ count: sql<number>`count(*)` }).from(InventoryBatch);
+                let countQuery = tx.select({ count: sql<number>`count(*)` }).from(inventoryBatch).$dynamic();
+                let selectQuery = tx.select().from(inventoryBatch).$dynamic();
+
+                const conditions = [];
+                if (searchTerm) {
+                    conditions.push(sql`${inventoryBatch.skuCode} ILIKE ${'%' + searchTerm + '%'}`);
+                }
+                if (status) {
+                    conditions.push(eq(inventoryBatch.isActive, status === 'Active'));
+                }
+
+                if (conditions.length > 0) {
+                    const whereClause = sql.join(conditions, sql` AND `);
+                    countQuery = countQuery.where(sql`${whereClause}`);
+                    selectQuery = selectQuery.where(sql`${whereClause}`);
+                }
+
+                const totalResult = await countQuery;
                 const total = Number(totalResult[0]?.count || 0);
 
-                const batches = await tx.select()
-                    .from(InventoryBatch)
-                    .orderBy(desc(InventoryBatch.createdAt))
+                const batches = await selectQuery
+                    .orderBy(desc(inventoryBatch.createdAt))
                     .limit(limit)
                     .offset(offset);
 
@@ -39,8 +56,8 @@ class InventoryBatchRepository {
         try {
             const result = await db
                 .select()
-                .from(InventoryBatch)
-                .where(eq(InventoryBatch.batchId, batchId))
+                .from(inventoryBatch)
+                .where(eq(inventoryBatch.batchId, batchId))
                 .limit(1);
 
             return result.length > 0 ? result[0] : null;

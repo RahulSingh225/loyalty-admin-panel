@@ -4,9 +4,9 @@
   --background: #ffffff;
   --foreground: #171717;
   --card-bg: #ffffff;
-  --card-border: rgba(16,24,40,0.04);
-  --card-shadow: 0 6px 18px rgba(16,24,40,0.06);
-  --card-shadow-hover: 0 10px 30px rgba(16,24,40,0.08);
+  --card-border: rgba(16, 24, 40, 0.04);
+  --card-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+  --card-shadow-hover: 0 10px 30px rgba(16, 24, 40, 0.08);
 }
 
 @theme {
@@ -30,51 +30,104 @@ body {
 /* Dashboard Custom Styles */
 .widget-card,
 .stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    box-shadow: var(--card-shadow);
-    transition: box-shadow 200ms ease, transform 160ms ease;
-    border-radius: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 200ms ease, transform 160ms ease;
+  border-radius: 12px;
 }
 
 .widget-card:hover,
 .stat-card:hover {
-    box-shadow: var(--card-shadow-hover);
-    transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-4px);
 }
 
 .glass-effect {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* Badge styles */
 .badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .badge-success {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .badge-warning {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 .badge-danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .badge-primary {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* KYC Status indicator */
+.kyc-pending {
+  border-left: 4px solid #f59e0b !important;
+}
+
+.kyc-approved {
+  border-left: 4px solid #10b981 !important;
+}
+
+.kyc-rejected {
+  border-left: 4px solid #ef4444 !important;
+}
+
+/* Tab styles */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab:hover {
+  color: #374151;
+}
+
+.tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+/* Action Dropdown Menu Styling (for MUI Menu components styled as custom dropdowns) */
+.action-dropdown-menu .MuiPaper-root {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+}
+
+.action-dropdown-item {
+  font-size: 0.875rem !important;
+  padding: 0.5rem 1rem !important;
 }

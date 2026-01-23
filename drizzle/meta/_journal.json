@@ -29,6 +29,20 @@
       "when": 1766404640550,
       "tag": "0003_yielding_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1768779594694,
+      "tag": "0004_good_wildside",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768900265236,
+      "tag": "0005_nappy_gambit",
+      "breakpoints": true
     }
   ]
 }

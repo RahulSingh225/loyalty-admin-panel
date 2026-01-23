@@ -17,9 +17,9 @@ export async function generateQrCodeAction(data: {
     }
 }
 
-export async function fetchQrHistory(page: number = 0, limit: number = 10) {
+export async function fetchQrHistory(page: number = 0, limit: number = 10, filters?: { searchTerm?: string, status?: string }) {
     try {
-        const result = await qrService.getQrHistory(page, limit);
+        const result = await qrService.getQrHistory(page, limit, filters);
         return result;
     } catch (error: any) {
         console.error("Failed to fetch QR history:", error);

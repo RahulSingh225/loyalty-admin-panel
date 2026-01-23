@@ -163,12 +163,115 @@ const accessLogsData: AccessLog[] = [
     }
 ];
 
-export async function getRoleDataAction() {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-        users: usersData,
-        roles: rolesData,
-        logs: accessLogsData
-    };
+import { db } from "@/db";
+import { users, userTypeEntity, approvalStatuses } from "@/db/schema";
+import { eq, and, count, or, ilike, sql } from "drizzle-orm";
+
+export interface UserFilters {
+    searchTerm?: string;
+    roleFilter?: string;
+    statusFilter?: string;
+}
+
+export async function getRoleDataAction(filters?: UserFilters) {
+    try {
+        const { searchTerm, roleFilter, statusFilter } = filters || {};
+
+        let userQuery = db.select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: userTypeEntity.typeName,
+            status: approvalStatuses.name,
+            lastLogin: users.lastLoginAt,
+            isSuspended: users.isSuspended,
+        })
+            .from(users)
+            .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
+            .leftJoin(approvalStatuses, eq(users.approvalStatusId, approvalStatuses.id))
+            .$dynamic();
+
+        const conditions = [];
+
+        if (searchTerm) {
+            conditions.push(or(
+                ilike(users.name, `%${searchTerm}%`),
+                ilike(users.email, `%${searchTerm}%`),
+                sql`CAST(${users.id} AS TEXT) ILIKE ${'%' + searchTerm + '%'}`
+            ));
+        }
+
+        if (roleFilter) {
+            conditions.push(eq(userTypeEntity.typeName, roleFilter));
+        }
+
+        if (statusFilter) {
+            if (statusFilter === 'active') {
+                conditions.push(eq(users.isSuspended, false));
+                conditions.push(or(
+                    ilike(approvalStatuses.name, '%approved%'),
+                    ilike(approvalStatuses.name, '%active%')
+                ));
+            } else if (statusFilter === 'inactive') {
+                conditions.push(eq(users.isSuspended, true));
+            } else if (statusFilter === 'pending') {
+                conditions.push(eq(users.isSuspended, false));
+                conditions.push(sql`NOT (${approvalStatuses.name} ILIKE '%approved%' OR ${approvalStatuses.name} ILIKE '%active%')`);
+            }
+        }
+
+        if (conditions.length > 0) {
+            userQuery = userQuery.where(and(...conditions));
+        }
+
+        const dbUsers = await userQuery.limit(100);
+
+        const [totalUsersCount] = await db.select({ value: count() }).from(users);
+        const [activeUsersCount] = await db.select({ value: count() }).from(users).where(eq(users.isSuspended, false));
+        const [adminUsersCount] = await db.select({ value: count() }).from(users).innerJoin(userTypeEntity, and(eq(users.roleId, userTypeEntity.id), eq(userTypeEntity.typeName, 'Admin')));
+
+        const formattedUsers: User[] = dbUsers.map(u => {
+            const initials = u.name ? u.name.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
+            const colors = ['#3f51b5', '#673ab7', '#4caf50', '#ff9800', '#f44336']; // Use consistent hex colors
+            const color = colors[u.id % colors.length];
+
+            return {
+                id: `USR${u.id.toString().padStart(3, '0')}`,
+                name: u.name || 'Unknown',
+                email: u.email || 'N/A',
+                role: u.role || 'User',
+                department: 'N/A',
+                lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never',
+                status: u.isSuspended ? 'inactive' : (u.status?.toLowerCase().includes('approved') || u.status?.toLowerCase().includes('active') ? 'active' : 'pending'),
+                avatar: '',
+                initials: initials,
+                color: color
+            };
+        });
+
+        return {
+            users: formattedUsers,
+            roles: rolesData,
+            logs: accessLogsData,
+            stats: {
+                totalUsers: totalUsersCount.value,
+                activeUsers: activeUsersCount.value,
+                adminUsers: adminUsersCount.value,
+                pendingInvites: 0
+            }
+        };
+    } catch (error) {
+        console.error("Error fetching role data:", error);
+        return {
+            users: [],
+            roles: [],
+            logs: [],
+            stats: {
+                totalUsers: 0,
+                activeUsers: 0,
+                adminUsers: 0,
+                pendingInvites: 0
+            }
+        };
+    }
 }

@@ -15,7 +15,8 @@ import {
     Tabs,
     Tab,
     CircularProgress,
-    Alert
+    Alert,
+    TextField
 } from '@mui/material'
 
 import {
@@ -32,7 +33,7 @@ import {
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
 import { useQuery } from '@tanstack/react-query'
-import { getFinanceDataAction } from '@/actions/finance-actions'
+import { getFinanceDataAction, getComplianceDataAction } from '@/actions/finance-actions'
 
 // Register ChartJS components
 ChartJS.register(
@@ -48,12 +49,46 @@ ChartJS.register(
 )
 
 export default function FinanceClient() {
-    const [activeTab, setActiveTab] = useState(0) // 0: Financial Overview, 1: Transactions
+    const [activeTab, setActiveTab] = useState(0) // 0: Financial Overview, 1: Transactions, 2: Compliance
+    const [filters, setFilters] = useState({
+        startDate: '',
+        endDate: '',
+        type: '',
+        status: ''
+    })
+    const [tempFilters, setTempFilters] = useState({
+        startDate: '',
+        endDate: '',
+        type: '',
+        status: ''
+    })
+
+    // Compliance Filters
+    const [compFilters, setCompFilters] = useState({
+        status: 'All Status',
+        type: 'All Stakeholders'
+    })
 
     const { data: financeData, isLoading, error } = useQuery({
-        queryKey: ['finance-data'],
-        queryFn: () => getFinanceDataAction()
+        queryKey: ['finance-data', filters],
+        queryFn: () => getFinanceDataAction(filters)
     })
+
+    const { data: complianceData, isLoading: isLoadingComp } = useQuery({
+        queryKey: ['compliance-data', compFilters],
+        queryFn: () => getComplianceDataAction(compFilters),
+        enabled: activeTab === 2
+    })
+
+    const handleApplyFilters = () => {
+        setFilters(tempFilters)
+    }
+
+    const handleResetFilters = () => {
+        const reset = { startDate: '', endDate: '', type: '', status: '' }
+        setTempFilters(reset)
+        setFilters(reset)
+    }
 
     // --- CHART DATA (Derived from Action or Default) ---
     const revenueTrendData = {
@@ -130,6 +165,7 @@ export default function FinanceClient() {
                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="finance tabs">
                     <Tab label="Financial Overview" sx={{ textTransform: 'none', fontWeight: 500 }} />
                     <Tab label="Transactions" sx={{ textTransform: 'none', fontWeight: 500 }} />
+                    <Tab label="Compliance & KYC" sx={{ textTransform: 'none', fontWeight: 500 }} />
                 </Tabs>
             </Box>
 
@@ -269,12 +305,237 @@ export default function FinanceClient() {
                 )}
             </div>
 
-            {/* TAB CONTENT: TRANSACTIONS (Placeholder based on existing UI, can also query data if needed) */}
+            {/* TAB CONTENT: TRANSACTIONS */}
             <div role="tabpanel" hidden={activeTab !== 1}>
                 {activeTab === 1 && (
                     <Box>
-                        {/* ... Reuse filters and list styles from original file, potentially fetching more data ... */}
-                        <div className="p-6 text-center text-gray-500">Full Transactions List Implementation Pending</div>
+                        <div className="widget-card p-6 w-full mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={tempFilters.startDate}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
+                                        className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">End Date</label>
+                                    <input
+                                        type="date"
+                                        value={tempFilters.endDate}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
+                                        className="w-full px-3 py-[7px] border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Type</label>
+                                    <select
+                                        value={tempFilters.type}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, type: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                    >
+                                        <option value="">All Types</option>
+                                        <option value="credit">Credit</option>
+                                        <option value="debit">Debit</option>
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-medium text-gray-700">Status</label>
+                                    <select
+                                        value={tempFilters.status}
+                                        onChange={(e) => setTempFilters({ ...tempFilters, status: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-md text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                    >
+                                        <option value="">All Status</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="failed">Failed</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        onClick={handleApplyFilters}
+                                        sx={{ py: 1.1, textTransform: 'none', backgroundColor: '#2563eb' }}
+                                    >
+                                        Apply
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={handleResetFilters}
+                                        sx={{ py: 1.1, textTransform: 'none' }}
+                                    >
+                                        Reset
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* TRANSACTION SUMMARY UNITS */}
+                            <Grid container spacing={2} sx={{ mb: 6 }}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Transactions</p>
+                                        <p className="text-2xl font-bold text-gray-900">1,234</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Credits</p>
+                                        <p className="text-2xl font-bold text-green-600">₹{(financeData?.overview?.pointsIssued || 0).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-red-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Total Debits</p>
+                                        <p className="text-2xl font-bold text-red-600">₹{(financeData?.overview?.pointsRedeemed || 0).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                                        <p className="text-sm text-gray-500 mb-1">Net Balance</p>
+                                        <p className="text-2xl font-bold text-purple-600">₹{((financeData?.overview?.pointsIssued || 0) - (financeData?.overview?.pointsRedeemed || 0)).toLocaleString()}</p>
+                                    </div>
+                                </Grid>
+                            </Grid>
+
+                            {/* TRANSACTIONS TABLE */}
+                            <TableContainer sx={{ borderTop: '1px solid #f3f4f6' }}>
+                                <Table sx={{ minWidth: 1000 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell padding="checkbox">
+                                                <input type="checkbox" className="rounded border-gray-300 ml-3" />
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Transaction ID</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Date & Time</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Member ID</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Member Name</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Description</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Amount</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', textTransform: 'uppercase' }}>Actions</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {financeData?.transactions?.map((row: any) => (
+                                            <TableRow key={row.id}>
+                                                <TableCell padding="checkbox">
+                                                    <input type="checkbox" className="rounded border-gray-300 ml-3" />
+                                                </TableCell>
+                                                <TableCell className="font-medium text-gray-900">{row.id}</TableCell>
+                                                <TableCell className="text-gray-500">{row.date} 10:30 AM</TableCell>
+                                                <TableCell><span className={`badge ${row.typeBadge}`}>{row.type}</span></TableCell>
+                                                <TableCell className="text-gray-500">MEM{(row.userId || '001').toString().slice(-3)}</TableCell>
+                                                <TableCell className="text-gray-500">{row.member}</TableCell>
+                                                <TableCell className="text-gray-500">Purchase Reward</TableCell>
+                                                <TableCell className="font-medium text-gray-900">{row.amount}</TableCell>
+                                                <TableCell><span className={`badge ${row.badgeColor}`}>{row.status}</span></TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-2 text-sm font-medium">
+                                                        <button className="text-blue-600 hover:text-blue-900">View</button>
+                                                        <button className="text-green-600 hover:text-green-900">Edit</button>
+                                                        <button className="text-red-600 hover:text-red-900">Cancel</button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+
+                            {/* PAGINATION */}
+                            <Box mt={4} display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="body2" color="text.secondary">
+                                    Showing 1 to {financeData?.transactions?.length || 0} of 1,234 entries
+                                </Typography>
+                                <div className="flex gap-1">
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Previous</button>
+                                    <button className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">1</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">2</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">3</button>
+                                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Next</button>
+                                </div>
+                            </Box>
+                        </div>
+                    </Box>
+                )}
+            </div>
+
+            {/* TAB CONTENT: COMPLIANCE & KYC */}
+            <div role="tabpanel" hidden={activeTab !== 2}>
+                {activeTab === 2 && (
+                    <Box>
+                        <div className="widget-card p-6 w-full mb-6">
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+                                <Typography variant="h6" fontWeight="bold">KYC Compliance List</Typography>
+                                <Box display="flex" gap={2}>
+                                    <select
+                                        value={compFilters.status}
+                                        onChange={(e) => setCompFilters({ ...compFilters, status: e.target.value })}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                    >
+                                        <option>All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="verified">Verified</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                    <select
+                                        value={compFilters.type}
+                                        onChange={(e) => setCompFilters({ ...compFilters, type: e.target.value })}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                    >
+                                        <option>All Stakeholders</option>
+                                        <option>Electrician</option>
+                                        <option>Retailer</option>
+                                        <option>Counter Sales</option>
+                                    </select>
+                                </Box>
+                            </Box>
+
+                            <TableContainer sx={{ border: '1px solid #eef2f6', borderRadius: '12px', overflow: 'hidden' }}>
+                                <Table>
+                                    <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Document</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {isLoadingComp ? (
+                                            <TableRow><TableCell colSpan={6} align="center"><CircularProgress size={24} /></TableCell></TableRow>
+                                        ) : complianceData?.length === 0 ? (
+                                            <TableRow><TableCell colSpan={6} align="center">No records found</TableCell></TableRow>
+                                        ) : (
+                                            complianceData?.map((item: any) => (
+                                                <TableRow key={item.id} hover>
+                                                    <TableCell sx={{ fontWeight: 500 }}>{item.member}</TableCell>
+                                                    <TableCell>{item.type}</TableCell>
+                                                    <TableCell>{item.document}</TableCell>
+                                                    <TableCell>
+                                                        <span className={`badge ${item.badgeColor}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>{item.date}</TableCell>
+                                                    <TableCell>
+                                                        <Button size="small" sx={{ textTransform: 'none' }}>Verify</Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </div>
                     </Box>
                 )}
             </div>

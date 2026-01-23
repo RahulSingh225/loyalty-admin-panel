@@ -1,61 +1,172 @@
 'use server'
 
-export interface Member {
+import { db } from "@/db"
+import {
+    electricians,
+    retailers,
+    counterSales,
+    users,
+    userTypeEntity,
+    approvalStatuses,
+    userTypeLevelMaster
+} from "@/db/schema"
+import { desc, eq, and, sql, ilike, count, or } from "drizzle-orm"
+
+export interface MemberBase {
     id: string;
+    dbId: number;
     name: string;
+    initials: string;
+    avatarColor: string;
+    phone: string;
     email: string;
-    mobile: string;
-    points: number;
-    status: 'active' | 'inactive' | 'blocked';
-    joinDate: string;
-    tier: string;
+    kycStatus: 'Pending' | 'Approved' | 'Rejected';
+    status: 'Active' | 'Inactive' | 'Blocked';
+    regions?: string;
+    joinedDate?: string;
 }
 
-const membersData: Member[] = [
-    {
-        id: 'MEM001',
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        mobile: '+91 9876543210',
-        points: 2500,
-        status: 'active',
-        joinDate: '2023-01-15',
-        tier: 'Gold'
-    },
-    {
-        id: 'MEM002',
-        name: 'Alice Smith',
-        email: 'alice.smith@example.com',
-        mobile: '+91 9876543211',
-        points: 1800,
-        status: 'active',
-        joinDate: '2023-02-20',
-        tier: 'Silver'
-    },
-    {
-        id: 'MEM003',
-        name: 'Bob Johnson',
-        email: 'bob.johnson@example.com',
-        mobile: '+91 9876543212',
-        points: 500,
-        status: 'inactive',
-        joinDate: '2023-03-10',
-        tier: 'Bronze'
-    },
-    {
-        id: 'MEM004',
-        name: 'Emma Wilson',
-        email: 'emma.wilson@example.com',
-        mobile: '+91 9876543213',
-        points: 3200,
-        status: 'blocked',
-        joinDate: '2023-01-05',
-        tier: 'Gold'
-    }
-];
+export interface MemberStats {
+    total: number;
+    totalTrend: string;
+    kycPending: number;
+    kycPendingTrend: string;
+    kycApproved: number;
+    kycApprovedRate: string;
+    activeToday: number;
+    activeTodayTrend: string;
+}
 
-export async function getMembersAction(): Promise<Member[]> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return membersData;
+export interface MemberFilters {
+    searchQuery?: string;
+    kycStatus?: string;
+    region?: string;
+}
+
+export interface MemberHierarchy {
+    levels: {
+        id: number;
+        name: string;
+        entities: {
+            id: number;
+            name: string;
+            members: {
+                list: MemberBase[];
+                stats: MemberStats;
+            };
+        }[];
+    }[];
+}
+
+function getInitials(name: string) {
+    if (!name) return '??';
+    const parts = name.split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].substring(0, 2).toUpperCase();
+}
+
+const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+function getRandomColor(id: number) {
+    return colors[id % colors.length];
+}
+
+export async function getMembersDataAction(filters?: MemberFilters): Promise<MemberHierarchy> {
+    try {
+        const { searchQuery, kycStatus, region } = filters || {};
+
+        // 1. Fetch Levels and Entities
+        const levels = await db.select().from(userTypeLevelMaster).orderBy(userTypeLevelMaster.levelNo);
+        const entities = await db.select().from(userTypeEntity).where(eq(userTypeEntity.isActive, true));
+
+        // 2. Prepare hierarchical structure
+        const hierarchy: MemberHierarchy = {
+            levels: levels.map(l => ({
+                id: l.id,
+                name: l.levelName,
+                entities: entities
+                    .filter(e => e.levelId === l.id)
+                    .map(e => ({
+                        id: e.id,
+                        name: e.typeName,
+                        members: { list: [], stats: { total: 0, totalTrend: '', kycPending: 0, kycPendingTrend: '', kycApproved: 0, kycApprovedRate: '', activeToday: 0, activeTodayTrend: '' } }
+                    }))
+            }))
+        };
+
+        // 3. Fetch users and group them
+        let usersQuery = db.select({
+            id: users.id,
+            name: users.name,
+            phone: users.phone,
+            email: users.email,
+            roleId: users.roleId,
+            isSuspended: users.isSuspended,
+            createdAt: users.createdAt,
+        })
+            .from(users)
+            .$dynamic();
+
+        const conditions = [];
+        if (searchQuery) {
+            conditions.push(or(
+                ilike(users.name, `%${searchQuery}%`),
+                ilike(users.phone, `%${searchQuery}%`),
+                ilike(users.email, `%${searchQuery}%`)
+            ));
+        }
+
+        if (conditions.length > 0) {
+            usersQuery = usersQuery.where(and(...conditions));
+        }
+
+        const allUsers = await usersQuery.limit(500);
+
+        // 4. Populate hierarchy
+        hierarchy.levels.forEach(level => {
+            level.entities.forEach(entity => {
+                const entityUsers = allUsers.filter(u => u.roleId === entity.id);
+
+                entity.members.list = entityUsers.map(u => ({
+                    id: `USR${u.id.toString().padStart(3, '0')}`,
+                    dbId: u.id,
+                    name: u.name || 'Unknown',
+                    initials: getInitials(u.name || 'Unknown'),
+                    avatarColor: getRandomColor(u.id),
+                    phone: u.phone || '',
+                    email: u.email || '',
+                    kycStatus: 'Approved',
+                    status: u.isSuspended ? 'Inactive' : 'Active',
+                    regions: '---',
+                    joinedDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '---'
+                }));
+
+                entity.members.stats = {
+                    total: entityUsers.length,
+                    totalTrend: '+0',
+                    kycPending: 0,
+                    kycPendingTrend: '0',
+                    kycApproved: entityUsers.length,
+                    kycApprovedRate: '100%',
+                    activeToday: Math.floor(entityUsers.length * 0.3),
+                    activeTodayTrend: '+0'
+                };
+            });
+        });
+
+        return hierarchy;
+    } catch (error) {
+        console.error("Error in getMembersDataAction:", error);
+        throw error;
+    }
+}
+
+export async function getMemberDetailsAction(type: string, id: number) {
+    try {
+        // Simple fetch from users for now
+        const result = await db.select().from(users).where(eq(users.id, id));
+        return result[0];
+    } catch (error) {
+        console.error("Error in getMemberDetailsAction:", error);
+        throw error;
+    }
 }
