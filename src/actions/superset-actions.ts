@@ -5,9 +5,9 @@ const SUPERSET_USERNAME = process.env.SUPERSET_USERNAME || 'admin';
 const SUPERSET_PASSWORD = process.env.SUPERSET_PASSWORD || 'admin';
 
 
-export async function getSupersetGuestToken(dashboardId: string) {
+// Helper to get Admin Token
+export async function getSupersetAdminToken() {
     try {
-        // 1. Login to get Access Token & Cookies
         const loginResponse = await fetch(`${SUPERSET_URL}/api/v1/security/login`, {
             method: 'POST',
             headers: {
@@ -27,20 +27,30 @@ export async function getSupersetGuestToken(dashboardId: string) {
         }
 
         const loginData = await loginResponse.json();
-        const accessToken = loginData.access_token;
+        return { accessToken: loginData.access_token };
+    } catch (error) {
+        console.error('Error fetching Superset Admin token:', error);
+        throw error;
+    }
+}
+
+export async function getSupersetGuestToken(dashboardId: string) {
+    try {
+        // 1. Login to get Access Token & Cookies
+        const { accessToken } = await getSupersetAdminToken();
 
 
         // Capture cookies from login response to pass to subsequent requests
-        const cookies = loginResponse.headers.get('set-cookie');
 
         // 2. Fetch CSRF Token explicitly (More reliable than parsing cookies)
         const csrfResponse = await fetch(`${SUPERSET_URL}/api/v1/security/csrf_token/`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
-                ...(cookies ? { 'Cookie': cookies } : {}),
+
             },
         });
+        const cookies = csrfResponse.headers.get('set-cookie');
 
         let csrfToken = null;
         if (csrfResponse.ok) {
@@ -64,7 +74,7 @@ export async function getSupersetGuestToken(dashboardId: string) {
             headers['X-CSRFToken'] = csrfToken;
         }
 
-
+        console.log(headers)
         const guestTokenResponse = await fetch(`${SUPERSET_URL}/api/v1/security/guest_token/`, {
             method: 'POST',
             headers: headers,
@@ -102,3 +112,34 @@ export async function getSupersetGuestToken(dashboardId: string) {
     }
 }
 
+
+// Fetch all dashboards and their Embedded UUIDs
+export async function getAllAvailableReports() {
+    const { accessToken } = await getSupersetAdminToken(); // Your existing login logic
+
+    // 1. Get the list of all dashboards
+    const response = await fetch(`${SUPERSET_URL}/api/v1/dashboard/?q=(columns:!(id,dashboard_title,slug))`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const { result } = await response.json();
+
+    // 2. For each dashboard, fetch its Embedded UUID
+    const reports = await Promise.all(result.map(async (dash: any) => {
+        const embedRes = await fetch(`${SUPERSET_URL}/api/v1/dashboard/${dash.id}/embedded`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        if (embedRes.ok) {
+            const embedData = await embedRes.json();
+            return {
+                id: dash.id,
+                title: dash.dashboard_title,
+                sid: embedData.result.uuid, // This is the UUID required by the SDK
+                type: 'dashboard'
+            };
+        }
+        return null; // Skip dashboards that don't have "Allow Embedding" enabled
+    }));
+
+    return reports.filter(r => r !== null);
+}

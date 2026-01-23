@@ -37,6 +37,9 @@ import {
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import { useQuery } from '@tanstack/react-query'
 import { getMisAnalyticsAction } from '@/actions/mis-actions'
+import { embedDashboard } from "@superset-ui/embedded-sdk";
+import { getAllAvailableReports, getSupersetGuestToken } from '@/actions/superset-actions';
+import { useEffect, useRef } from 'react';
 
 ChartJS.register(
     CategoryScale,
@@ -53,6 +56,54 @@ ChartJS.register(
 
 export default function MisClient() {
     const [activeTab, setActiveTab] = useState(0)
+    const [availableReports, setAvailableReports] = useState<any[]>([]);
+    const [activeReport, setActiveReport] = useState<any>(null);
+    const dashboardRef = useRef<HTMLDivElement>(null);
+
+    // Fetch reports on mount
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const reports = await getAllAvailableReports();
+                setAvailableReports(reports || []);
+            } catch (err) {
+                console.error("Failed to fetch reports", err);
+            }
+        };
+        fetchReports();
+    }, []);
+
+    // Embed dashboard when activeReport changes
+    useEffect(() => {
+        if (activeReport && dashboardRef.current) {
+            const mountDashboard = async () => {
+                try {
+                    const { token, supsersetDomain } = await getSupersetGuestToken(activeReport.sid.toString());
+                    await embedDashboard({
+                        id: activeReport.sid,
+                        supersetDomain: supsersetDomain,
+                        mountPoint: dashboardRef.current!,
+                        fetchGuestToken: () => Promise.resolve(token),
+                        dashboardUiConfig: {
+                            hideTitle: true,
+                            hideChartControls: false,
+                            hideTab: true,
+                            filters: {
+                                expanded: true,
+                            },
+                            urlParams: { standalone: "3" }
+                        },
+                    });
+                } catch (error) {
+                    console.error("Error embedding dashboard:", error);
+                }
+            };
+            mountDashboard();
+            return () => {
+                if (dashboardRef.current) dashboardRef.current.innerHTML = "";
+            };
+        }
+    }, [activeReport]);
 
     // Fetch Data
     const { data: analyticsData, isLoading, error } = useQuery({
@@ -631,117 +682,61 @@ export default function MisClient() {
             </div>
 
             {/* --- TAB 4: REPORTS --- */}
-            <div role="tabpanel" hidden={activeTab !== 4}>
+            <div role="tabpanel" hidden={activeTab !== 4} style={{ height: 'calc(100vh - 200px)', display: activeTab === 4 ? 'block' : 'none' }}>
                 {activeTab === 4 && (
-                    <Box>
-                        <Grid container spacing={3}>
-                            {/* Report Categories Sidebar */}
-                            <Grid size={{ xs: 12, lg: 3 }}>
-                                <div className="widget-card p-4 w-full">
-                                    <Typography variant="h6" fontWeight="600" mb={2}>Report Categories</Typography>
-                                    <Box display="flex" flexDirection="column" gap={0.5}>
-                                        {[
-                                            { name: 'Registration & Login', icon: 'fa-user-plus' },
-                                            { name: 'QR Scans', icon: 'fa-qrcode', active: true },
-                                            { name: 'Redemptions', icon: 'fa-exchange-alt' },
-                                            { name: 'Referrals', icon: 'fa-share-alt' },
-                                            { name: 'Gamification', icon: 'fa-gamepad' },
-                                            { name: 'Compliance', icon: 'fa-file-invoice-dollar' },
-                                            { name: 'Sales & Marketing', icon: 'fa-chart-line' },
-                                        ].map((item, i) => (
-                                            <div key={i} className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition ${item.active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
-                                                }`}>
-                                                <i className={`fas ${item.icon} mr-3 ${item.active ? 'text-blue-500' : 'text-gray-500'}`}></i>
-                                                {item.name}
-                                            </div>
-                                        ))}
-                                    </Box>
+                    <Box display="flex" height="100%">
+                        {/* Side Card / Sidebar */}
+                        <aside style={{ width: '280px', background: '#f4f4f4', padding: '20px', overflowY: 'auto' }} className="rounded-l-xl border-r border-gray-200">
+                            <Typography variant="h6" fontWeight="600" mb={2}>Available Reports</Typography>
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                {availableReports.map((report: any) => (
+                                    <li key={report.id} style={{ marginBottom: '10px' }}>
+                                        <button
+                                            onClick={() => setActiveReport(report)}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '10px',
+                                                cursor: 'pointer',
+                                                background: activeReport?.id === report.id ? '#ddd' : '#fff',
+                                                border: '1px solid #ccc',
+                                                borderRadius: '8px'
+                                            }}
+                                            className="hover:bg-gray-100 transition-colors"
+                                        >
+                                            <Typography variant="body2" fontWeight={500}>{report.title}</Typography>
+                                        </button>
+                                    </li>
+                                ))}
+                                {availableReports.length === 0 && (
+                                    <Typography variant="body2" color="text.secondary">No reports available.</Typography>
+                                )}
+                            </ul>
+                        </aside>
+
+                        {/* Main Report View */}
+                        <main style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} className="bg-white rounded-r-xl">
+                            <style dangerouslySetInnerHTML={{
+                                __html: `
+                                .superset-container iframe {
+                                    width: 100% !important;
+                                    height: 100% !important;
+                                    border: none !important;
+                                    display: block !important;
+                                }
+                            `}} />
+                            {activeReport ? (
+                                <div
+                                    ref={dashboardRef}
+                                    style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}
+                                    className="superset-container"
+                                />
+                            ) : (
+                                <div style={{ padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                    <Typography variant="h6" color="text.secondary">Select a report from the sidebar to begin.</Typography>
                                 </div>
-                            </Grid>
-
-                            {/* Report Content */}
-                            <Grid size={{ xs: 12, lg: 9 }}>
-                                <div className="widget-card p-6 w-full">
-                                    {/* Header & Actions */}
-                                    <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} mb={4} gap={2}>
-                                        <Box>
-                                            <Typography variant="h6" fontWeight="600">QR Scan Report</Typography>
-                                            <Typography variant="body2" color="text.secondary">Detailed QR transaction data</Typography>
-                                        </Box>
-                                        <Box display="flex" gap={1}>
-                                            <Button variant="contained" color="primary" size="small" startIcon={<i className="fas fa-file-csv"></i>}>Export CSV</Button>
-                                            <Button variant="contained" color="error" size="small" startIcon={<i className="fas fa-file-pdf"></i>}>Export PDF</Button>
-                                        </Box>
-                                    </Box>
-
-                                    {/* Filters */}
-                                    <Box bgcolor="grey.50" p={2} borderRadius={2} mb={4}>
-                                        <Grid container spacing={2}>
-                                            <Grid size={{ xs: 12, md: 3 }}>
-                                                <Typography variant="caption" fontWeight={600} mb={0.5} display="block">Stakeholder</Typography>
-                                                <Select fullWidth size="small" defaultValue="All" sx={{ bgcolor: 'white' }}>
-                                                    <MenuItem value="All">All</MenuItem>
-                                                    <MenuItem value="Retailer">Retailer</MenuItem>
-                                                </Select>
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 3 }}>
-                                                <Typography variant="caption" fontWeight={600} mb={0.5} display="block">SKU</Typography>
-                                                <Select fullWidth size="small" defaultValue="All" sx={{ bgcolor: 'white' }}>
-                                                    <MenuItem value="All">All</MenuItem>
-                                                </Select>
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 3 }}>
-                                                <Typography variant="caption" fontWeight={600} mb={0.5} display="block">Date Range</Typography>
-                                                <TextField type="date" fullWidth size="small" sx={{ bgcolor: 'white' }} />
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 3 }} display="flex" alignItems="flex-end">
-                                                <Button fullWidth variant="contained">Apply Filters</Button>
-                                            </Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* Table */}
-                                    <TableContainer>
-                                        <Table>
-                                            <TableHead sx={{ bgcolor: 'grey.50' }}>
-                                                <TableRow>
-                                                    <TableCell>Txn ID</TableCell>
-                                                    <TableCell>Stakeholder</TableCell>
-                                                    <TableCell>SKU</TableCell>
-                                                    <TableCell>Geo</TableCell>
-                                                    <TableCell>Time</TableCell>
-                                                    <TableCell>Type</TableCell>
-                                                    <TableCell>Status</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {analyticsData?.reports?.qrScanReport?.map((row: any) => (
-                                                    <TableRow key={row.id} hover>
-                                                        <TableCell sx={{ fontWeight: 500 }}>{row.id}</TableCell>
-                                                        <TableCell color="text.secondary">{row.stakeholder}</TableCell>
-                                                        <TableCell>{row.sku}</TableCell>
-                                                        <TableCell>{row.geo}</TableCell>
-                                                        <TableCell>{row.time}</TableCell>
-                                                        <TableCell>
-                                                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                                {row.type}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${row.status === 'Success' ? 'bg-green-100 text-green-800' :
-                                                                row.status === 'Failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                                                                }`}>
-                                                                {row.status}
-                                                            </span>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                </div>
-                            </Grid>
-                        </Grid>
+                            )}
+                        </main>
                     </Box>
                 )}
             </div>

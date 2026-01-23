@@ -4,7 +4,7 @@ import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { getSupersetGuestToken } from '@/actions/superset-actions';
 
 const REPORTS_LIST = [
-    { id: 1, title: "Sales Overview", type: "dashboard", sid: "13" },
+    { id: 1, title: "Sales Overview", type: "dashboard", sid: "a9289d25-810d-4d8e-93d7-e9624eb0814f" },
     // SDK primarily supports dashboards. Charts usually need to be on a dashboard.
     // If 161 is just a slice, this might not work directly without being on a dashboard.
     { id: 2, title: "Top Products", type: "dashboard", sid: "161" }
@@ -21,8 +21,10 @@ export default function ReportPage() {
             const mountDashboard = async () => {
                 try {
                     // Fetch guest token
-                    const { token, supsersetDomain } = await getSupersetGuestToken(activeReport.sid.toString());
 
+                    console.log('OKOKOK', activeReport.sid);
+                    const { token, supsersetDomain } = await getSupersetGuestToken(activeReport.sid.toString());
+                    console.log('OKOKOK', token, supsersetDomain);
                     cancelToken = await embedDashboard({
                         id: activeReport.sid, // given by the Superset embedding UI
                         supersetDomain: supsersetDomain,
@@ -33,7 +35,7 @@ export default function ReportPage() {
                             hideChartControls: true,
                             hideTab: true,
                             filters: {
-                                expanded: false,
+                                expanded: true,
                             }
                         },
                     });
@@ -81,11 +83,20 @@ export default function ReportPage() {
             </aside>
 
             {/* Main Report View */}
-            <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <main style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    .superset-container iframe {
+                        width: 100% !important;
+                        height: 100% !important;
+                        border: none !important;
+                        display: block !important;
+                    }
+                `}} />
                 {activeReport ? (
                     <div
                         ref={dashboardRef}
-                        style={{ width: '100%', height: '100%' }}
+                        style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}
                         className="superset-container"
                     />
                 ) : (

@@ -1,14 +1,14 @@
 import { relations } from "drizzle-orm/relations";
-import { users, auditLogs, counterSales, schemeTypes, campaigns, counterSalesLedger, earningTypes, counterSalesTransactionLogs, schemes, counterSalesTransactions, appConfigs, electricianLedger, electricianTransactionLogs, client, locationEntity, locationLevelMaster, locationEntityPincode, pincodeMaster, electricians, kycDocuments, electricianTransactions, otpMaster, skuEntity, participantSkuAccess, skuLevelMaster, notifications, qrCodes, qrTypes, retailerLedger, redemptions, redemptionChannels, redemptionStatuses, referrals, retailerTransactionLogs, retailers, retailerTransactions, skuLevel2Master, skuLevel3Master, skuLevel4Master, skuLevel5Master, skuLevel6Master, skuPointConfig, skuVariant, userTypeEntity, tdsRecords, thirdPartyVerificationLogs, userAssociations, systemLogs, userScopeMapping, userTypeLevelMaster, approvalStatuses, languages, onboardingTypes, creativesTypes, creatives, eventMaster, eventLogs, skuLevel1Master, ticketStatuses, tickets, ticketTypes, amazonMarketplaceProducts, userAmazonOrders, amazonOrderItems, amazonTickets, approvalAuditLogs, redemptionApprovals, physicalRewardsRedemptions, physicalRewardsCatalogue, redemptionThresholds, userAmazonCart, userAmazonWishlist, userApprovalRoles, approvalRoles, inappNotifications } from "./schema";
+import { users, auditLogs, counterSales, schemeTypes, campaigns, counterSalesLedger, earningTypes, counterSalesTransactionLogs, schemes, counterSalesTransactions, appConfigs, electricianLedger, electricianTransactionLogs, client, locationEntity, locationLevelMaster, locationEntityPincode, pincodeMaster, electricians, kycDocuments, electricianTransactions, otpMaster, skuEntity, participantSkuAccess, skuLevelMaster, notifications, qrCodes, qrTypes, retailerLedger, redemptions, redemptionChannels, redemptionStatuses, referrals, retailerTransactionLogs, retailers, retailerTransactions, skuPointConfig, skuVariant, userTypeEntity, tdsRecords, thirdPartyVerificationLogs, userAssociations, systemLogs, userScopeMapping, userTypeLevelMaster, approvalStatuses, languages, onboardingTypes, creativesTypes, creatives, eventMaster, eventLogs, ticketStatuses, tickets, ticketTypes, amazonMarketplaceProducts, userAmazonOrders, amazonOrderItems, amazonTickets, approvalAuditLogs, redemptionApprovals, physicalRewardsRedemptions, physicalRewardsCatalogue, redemptionThresholds, userAmazonCart, userAmazonWishlist, userApprovalRoles, approvalRoles, inappNotifications } from "./schema";
 
-export const auditLogsRelations = relations(auditLogs, ({one}) => ({
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 	user: one(users, {
 		fields: [auditLogs.changedBy],
 		references: [users.id]
 	}),
 }));
 
-export const usersRelations = relations(users, ({one, many}) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
 	auditLogs: many(auditLogs),
 	counterSales_attachedRetailerId: many(counterSales, {
 		relationName: "counterSales_attachedRetailerId_users_id"
@@ -108,7 +108,7 @@ export const usersRelations = relations(users, ({one, many}) => ({
 	inappNotifications: many(inappNotifications),
 }));
 
-export const counterSalesRelations = relations(counterSales, ({one}) => ({
+export const counterSalesRelations = relations(counterSales, ({ one }) => ({
 	user_attachedRetailerId: one(users, {
 		fields: [counterSales.attachedRetailerId],
 		references: [users.id],
@@ -121,26 +121,26 @@ export const counterSalesRelations = relations(counterSales, ({one}) => ({
 	}),
 }));
 
-export const campaignsRelations = relations(campaigns, ({one}) => ({
+export const campaignsRelations = relations(campaigns, ({ one }) => ({
 	schemeType: one(schemeTypes, {
 		fields: [campaigns.schemeType],
 		references: [schemeTypes.id]
 	}),
 }));
 
-export const schemeTypesRelations = relations(schemeTypes, ({many}) => ({
+export const schemeTypesRelations = relations(schemeTypes, ({ many }) => ({
 	campaigns: many(campaigns),
 	schemes: many(schemes),
 }));
 
-export const counterSalesLedgerRelations = relations(counterSalesLedger, ({one}) => ({
+export const counterSalesLedgerRelations = relations(counterSalesLedger, ({ one }) => ({
 	user: one(users, {
 		fields: [counterSalesLedger.userId],
 		references: [users.id]
 	}),
 }));
 
-export const counterSalesTransactionLogsRelations = relations(counterSalesTransactionLogs, ({one}) => ({
+export const counterSalesTransactionLogsRelations = relations(counterSalesTransactionLogs, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [counterSalesTransactionLogs.earningType],
 		references: [earningTypes.id]
@@ -155,7 +155,7 @@ export const counterSalesTransactionLogsRelations = relations(counterSalesTransa
 	}),
 }));
 
-export const earningTypesRelations = relations(earningTypes, ({many}) => ({
+export const earningTypesRelations = relations(earningTypes, ({ many }) => ({
 	counterSalesTransactionLogs: many(counterSalesTransactionLogs),
 	counterSalesTransactions: many(counterSalesTransactions),
 	electricianTransactionLogs: many(electricianTransactionLogs),
@@ -164,7 +164,7 @@ export const earningTypesRelations = relations(earningTypes, ({many}) => ({
 	retailerTransactions: many(retailerTransactions),
 }));
 
-export const schemesRelations = relations(schemes, ({one, many}) => ({
+export const schemesRelations = relations(schemes, ({ one, many }) => ({
 	counterSalesTransactionLogs: many(counterSalesTransactionLogs),
 	counterSalesTransactions: many(counterSalesTransactions),
 	electricianTransactionLogs: many(electricianTransactionLogs),
@@ -178,7 +178,7 @@ export const schemesRelations = relations(schemes, ({one, many}) => ({
 	retailerTransactions: many(retailerTransactions),
 }));
 
-export const counterSalesTransactionsRelations = relations(counterSalesTransactions, ({one}) => ({
+export const counterSalesTransactionsRelations = relations(counterSalesTransactions, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [counterSalesTransactions.earningType],
 		references: [earningTypes.id]
@@ -193,21 +193,21 @@ export const counterSalesTransactionsRelations = relations(counterSalesTransacti
 	}),
 }));
 
-export const appConfigsRelations = relations(appConfigs, ({one}) => ({
+export const appConfigsRelations = relations(appConfigs, ({ one }) => ({
 	user: one(users, {
 		fields: [appConfigs.updatedBy],
 		references: [users.id]
 	}),
 }));
 
-export const electricianLedgerRelations = relations(electricianLedger, ({one}) => ({
+export const electricianLedgerRelations = relations(electricianLedger, ({ one }) => ({
 	user: one(users, {
 		fields: [electricianLedger.userId],
 		references: [users.id]
 	}),
 }));
 
-export const electricianTransactionLogsRelations = relations(electricianTransactionLogs, ({one}) => ({
+export const electricianTransactionLogsRelations = relations(electricianTransactionLogs, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [electricianTransactionLogs.earningType],
 		references: [earningTypes.id]
@@ -222,7 +222,7 @@ export const electricianTransactionLogsRelations = relations(electricianTransact
 	}),
 }));
 
-export const locationEntityRelations = relations(locationEntity, ({one, many}) => ({
+export const locationEntityRelations = relations(locationEntity, ({ one, many }) => ({
 	client: one(client, {
 		fields: [locationEntity.clientId],
 		references: [client.id]
@@ -242,7 +242,7 @@ export const locationEntityRelations = relations(locationEntity, ({one, many}) =
 	locationEntityPincodes: many(locationEntityPincode),
 }));
 
-export const clientRelations = relations(client, ({many}) => ({
+export const clientRelations = relations(client, ({ many }) => ({
 	locationEntities: many(locationEntity),
 	locationLevelMasters: many(locationLevelMaster),
 	skuEntities: many(skuEntity),
@@ -250,7 +250,7 @@ export const clientRelations = relations(client, ({many}) => ({
 	skuPointConfigs: many(skuPointConfig),
 }));
 
-export const locationLevelMasterRelations = relations(locationLevelMaster, ({one, many}) => ({
+export const locationLevelMasterRelations = relations(locationLevelMaster, ({ one, many }) => ({
 	locationEntities: many(locationEntity),
 	client: one(client, {
 		fields: [locationLevelMaster.clientId],
@@ -258,7 +258,7 @@ export const locationLevelMasterRelations = relations(locationLevelMaster, ({one
 	}),
 }));
 
-export const locationEntityPincodeRelations = relations(locationEntityPincode, ({one}) => ({
+export const locationEntityPincodeRelations = relations(locationEntityPincode, ({ one }) => ({
 	locationEntity: one(locationEntity, {
 		fields: [locationEntityPincode.entityId],
 		references: [locationEntity.id]
@@ -269,25 +269,25 @@ export const locationEntityPincodeRelations = relations(locationEntityPincode, (
 	}),
 }));
 
-export const pincodeMasterRelations = relations(pincodeMaster, ({many}) => ({
+export const pincodeMasterRelations = relations(pincodeMaster, ({ many }) => ({
 	locationEntityPincodes: many(locationEntityPincode),
 }));
 
-export const electriciansRelations = relations(electricians, ({one}) => ({
+export const electriciansRelations = relations(electricians, ({ one }) => ({
 	user: one(users, {
 		fields: [electricians.userId],
 		references: [users.id]
 	}),
 }));
 
-export const kycDocumentsRelations = relations(kycDocuments, ({one}) => ({
+export const kycDocumentsRelations = relations(kycDocuments, ({ one }) => ({
 	user: one(users, {
 		fields: [kycDocuments.userId],
 		references: [users.id]
 	}),
 }));
 
-export const electricianTransactionsRelations = relations(electricianTransactions, ({one}) => ({
+export const electricianTransactionsRelations = relations(electricianTransactions, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [electricianTransactions.earningType],
 		references: [earningTypes.id]
@@ -302,14 +302,14 @@ export const electricianTransactionsRelations = relations(electricianTransaction
 	}),
 }));
 
-export const otpMasterRelations = relations(otpMaster, ({one}) => ({
+export const otpMasterRelations = relations(otpMaster, ({ one }) => ({
 	user: one(users, {
 		fields: [otpMaster.userId],
 		references: [users.id]
 	}),
 }));
 
-export const participantSkuAccessRelations = relations(participantSkuAccess, ({one}) => ({
+export const participantSkuAccessRelations = relations(participantSkuAccess, ({ one }) => ({
 	skuEntity: one(skuEntity, {
 		fields: [participantSkuAccess.skuEntityId],
 		references: [skuEntity.id]
@@ -324,7 +324,7 @@ export const participantSkuAccessRelations = relations(participantSkuAccess, ({o
 	}),
 }));
 
-export const skuEntityRelations = relations(skuEntity, ({one, many}) => ({
+export const skuEntityRelations = relations(skuEntity, ({ one, many }) => ({
 	participantSkuAccesses: many(participantSkuAccess),
 	client: one(client, {
 		fields: [skuEntity.clientId],
@@ -345,7 +345,7 @@ export const skuEntityRelations = relations(skuEntity, ({one, many}) => ({
 	skuVariants: many(skuVariant),
 }));
 
-export const skuLevelMasterRelations = relations(skuLevelMaster, ({one, many}) => ({
+export const skuLevelMasterRelations = relations(skuLevelMaster, ({ one, many }) => ({
 	participantSkuAccesses: many(participantSkuAccess),
 	skuEntities: many(skuEntity),
 	client: one(client, {
@@ -354,14 +354,14 @@ export const skuLevelMasterRelations = relations(skuLevelMaster, ({one, many}) =
 	}),
 }));
 
-export const notificationsRelations = relations(notifications, ({one}) => ({
+export const notificationsRelations = relations(notifications, ({ one }) => ({
 	user: one(users, {
 		fields: [notifications.userId],
 		references: [users.id]
 	}),
 }));
 
-export const qrCodesRelations = relations(qrCodes, ({one, many}) => ({
+export const qrCodesRelations = relations(qrCodes, ({ one, many }) => ({
 	qrCode: one(qrCodes, {
 		fields: [qrCodes.parentQrId],
 		references: [qrCodes.id],
@@ -380,18 +380,18 @@ export const qrCodesRelations = relations(qrCodes, ({one, many}) => ({
 	}),
 }));
 
-export const qrTypesRelations = relations(qrTypes, ({many}) => ({
+export const qrTypesRelations = relations(qrTypes, ({ many }) => ({
 	qrCodes: many(qrCodes),
 }));
 
-export const retailerLedgerRelations = relations(retailerLedger, ({one}) => ({
+export const retailerLedgerRelations = relations(retailerLedger, ({ one }) => ({
 	user: one(users, {
 		fields: [retailerLedger.userId],
 		references: [users.id]
 	}),
 }));
 
-export const redemptionsRelations = relations(redemptions, ({one, many}) => ({
+export const redemptionsRelations = relations(redemptions, ({ one, many }) => ({
 	user_approvedBy: one(users, {
 		fields: [redemptions.approvedBy],
 		references: [users.id],
@@ -418,15 +418,15 @@ export const redemptionsRelations = relations(redemptions, ({one, many}) => ({
 	redemptionApprovals: many(redemptionApprovals),
 }));
 
-export const redemptionChannelsRelations = relations(redemptionChannels, ({many}) => ({
+export const redemptionChannelsRelations = relations(redemptionChannels, ({ many }) => ({
 	redemptions: many(redemptions),
 }));
 
-export const redemptionStatusesRelations = relations(redemptionStatuses, ({many}) => ({
+export const redemptionStatusesRelations = relations(redemptionStatuses, ({ many }) => ({
 	redemptions: many(redemptions),
 }));
 
-export const referralsRelations = relations(referrals, ({one}) => ({
+export const referralsRelations = relations(referrals, ({ one }) => ({
 	user_referredId: one(users, {
 		fields: [referrals.referredId],
 		references: [users.id],
@@ -439,7 +439,7 @@ export const referralsRelations = relations(referrals, ({one}) => ({
 	}),
 }));
 
-export const retailerTransactionLogsRelations = relations(retailerTransactionLogs, ({one}) => ({
+export const retailerTransactionLogsRelations = relations(retailerTransactionLogs, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [retailerTransactionLogs.earningType],
 		references: [earningTypes.id]
@@ -454,14 +454,14 @@ export const retailerTransactionLogsRelations = relations(retailerTransactionLog
 	}),
 }));
 
-export const retailersRelations = relations(retailers, ({one}) => ({
+export const retailersRelations = relations(retailers, ({ one }) => ({
 	user: one(users, {
 		fields: [retailers.userId],
 		references: [users.id]
 	}),
 }));
 
-export const retailerTransactionsRelations = relations(retailerTransactions, ({one}) => ({
+export const retailerTransactionsRelations = relations(retailerTransactions, ({ one }) => ({
 	earningType: one(earningTypes, {
 		fields: [retailerTransactions.earningType],
 		references: [earningTypes.id]
@@ -476,46 +476,46 @@ export const retailerTransactionsRelations = relations(retailerTransactions, ({o
 	}),
 }));
 
-export const skuLevel3MasterRelations = relations(skuLevel3Master, ({one, many}) => ({
-	skuLevel2Master: one(skuLevel2Master, {
-		fields: [skuLevel3Master.l2Id],
-		references: [skuLevel2Master.id]
-	}),
-	skuLevel4Masters: many(skuLevel4Master),
-}));
+// export const skuLevel3MasterRelations = relations(skuLevel3Master, ({ one, many }) => ({
+// 	skuLevel2Master: one(skuLevel2Master, {
+// 		fields: [skuLevel3Master.l2Id],
+// 		references: [skuLevel2Master.id]
+// 	}),
+// 	skuLevel4Masters: many(skuLevel4Master),
+// }));
 
-export const skuLevel2MasterRelations = relations(skuLevel2Master, ({one, many}) => ({
-	skuLevel3Masters: many(skuLevel3Master),
-	skuLevel1Master: one(skuLevel1Master, {
-		fields: [skuLevel2Master.l1Id],
-		references: [skuLevel1Master.id]
-	}),
-}));
+// export const skuLevel2MasterRelations = relations(skuLevel2Master, ({ one, many }) => ({
+// 	skuLevel3Masters: many(skuLevel3Master),
+// 	skuLevel1Master: one(skuLevel1Master, {
+// 		fields: [skuLevel2Master.l1Id],
+// 		references: [skuLevel1Master.id]
+// 	}),
+// }));
 
-export const skuLevel4MasterRelations = relations(skuLevel4Master, ({one, many}) => ({
-	skuLevel3Master: one(skuLevel3Master, {
-		fields: [skuLevel4Master.l3Id],
-		references: [skuLevel3Master.id]
-	}),
-	skuLevel5Masters: many(skuLevel5Master),
-}));
+// export const skuLevel4MasterRelations = relations(skuLevel4Master, ({ one, many }) => ({
+// 	skuLevel3Master: one(skuLevel3Master, {
+// 		fields: [skuLevel4Master.l3Id],
+// 		references: [skuLevel3Master.id]
+// 	}),
+// 	skuLevel5Masters: many(skuLevel5Master),
+// }));
 
-export const skuLevel5MasterRelations = relations(skuLevel5Master, ({one, many}) => ({
-	skuLevel4Master: one(skuLevel4Master, {
-		fields: [skuLevel5Master.l4Id],
-		references: [skuLevel4Master.id]
-	}),
-	skuLevel6Masters: many(skuLevel6Master),
-}));
+// export const skuLevel5MasterRelations = relations(skuLevel5Master, ({ one, many }) => ({
+// 	skuLevel4Master: one(skuLevel4Master, {
+// 		fields: [skuLevel5Master.l4Id],
+// 		references: [skuLevel4Master.id]
+// 	}),
+// 	skuLevel6Masters: many(skuLevel6Master),
+// }));
 
-export const skuLevel6MasterRelations = relations(skuLevel6Master, ({one}) => ({
-	skuLevel5Master: one(skuLevel5Master, {
-		fields: [skuLevel6Master.l5Id],
-		references: [skuLevel5Master.id]
-	}),
-}));
+// export const skuLevel6MasterRelations = relations(skuLevel6Master, ({ one }) => ({
+// 	skuLevel5Master: one(skuLevel5Master, {
+// 		fields: [skuLevel6Master.l5Id],
+// 		references: [skuLevel5Master.id]
+// 	}),
+// }));
 
-export const skuPointConfigRelations = relations(skuPointConfig, ({one}) => ({
+export const skuPointConfigRelations = relations(skuPointConfig, ({ one }) => ({
 	client: one(client, {
 		fields: [skuPointConfig.clientId],
 		references: [client.id]
@@ -530,7 +530,7 @@ export const skuPointConfigRelations = relations(skuPointConfig, ({one}) => ({
 	}),
 }));
 
-export const skuVariantRelations = relations(skuVariant, ({one, many}) => ({
+export const skuVariantRelations = relations(skuVariant, ({ one, many }) => ({
 	skuPointConfigs: many(skuPointConfig),
 	skuEntity: one(skuEntity, {
 		fields: [skuVariant.skuEntityId],
@@ -538,7 +538,7 @@ export const skuVariantRelations = relations(skuVariant, ({one, many}) => ({
 	}),
 }));
 
-export const userTypeEntityRelations = relations(userTypeEntity, ({one, many}) => ({
+export const userTypeEntityRelations = relations(userTypeEntity, ({ one, many }) => ({
 	skuPointConfigs: many(skuPointConfig),
 	userScopeMappings: many(userScopeMapping),
 	userTypeLevelMaster: one(userTypeLevelMaster, {
@@ -556,21 +556,21 @@ export const userTypeEntityRelations = relations(userTypeEntity, ({one, many}) =
 	users: many(users),
 }));
 
-export const tdsRecordsRelations = relations(tdsRecords, ({one}) => ({
+export const tdsRecordsRelations = relations(tdsRecords, ({ one }) => ({
 	user: one(users, {
 		fields: [tdsRecords.userId],
 		references: [users.id]
 	}),
 }));
 
-export const thirdPartyVerificationLogsRelations = relations(thirdPartyVerificationLogs, ({one}) => ({
+export const thirdPartyVerificationLogsRelations = relations(thirdPartyVerificationLogs, ({ one }) => ({
 	user: one(users, {
 		fields: [thirdPartyVerificationLogs.userId],
 		references: [users.id]
 	}),
 }));
 
-export const userAssociationsRelations = relations(userAssociations, ({one}) => ({
+export const userAssociationsRelations = relations(userAssociations, ({ one }) => ({
 	user_childUserId: one(users, {
 		fields: [userAssociations.childUserId],
 		references: [users.id],
@@ -583,14 +583,14 @@ export const userAssociationsRelations = relations(userAssociations, ({one}) => 
 	}),
 }));
 
-export const systemLogsRelations = relations(systemLogs, ({one}) => ({
+export const systemLogsRelations = relations(systemLogs, ({ one }) => ({
 	user: one(users, {
 		fields: [systemLogs.userId],
 		references: [users.id]
 	}),
 }));
 
-export const userScopeMappingRelations = relations(userScopeMapping, ({one}) => ({
+export const userScopeMappingRelations = relations(userScopeMapping, ({ one }) => ({
 	user: one(users, {
 		fields: [userScopeMapping.userId],
 		references: [users.id]
@@ -601,7 +601,7 @@ export const userScopeMappingRelations = relations(userScopeMapping, ({one}) => 
 	}),
 }));
 
-export const userTypeLevelMasterRelations = relations(userTypeLevelMaster, ({one, many}) => ({
+export const userTypeLevelMasterRelations = relations(userTypeLevelMaster, ({ one, many }) => ({
 	userTypeEntities: many(userTypeEntity),
 	userTypeLevelMaster: one(userTypeLevelMaster, {
 		fields: [userTypeLevelMaster.parentLevelId],
@@ -613,30 +613,30 @@ export const userTypeLevelMasterRelations = relations(userTypeLevelMaster, ({one
 	}),
 }));
 
-export const approvalStatusesRelations = relations(approvalStatuses, ({many}) => ({
+export const approvalStatusesRelations = relations(approvalStatuses, ({ many }) => ({
 	users: many(users),
 }));
 
-export const languagesRelations = relations(languages, ({many}) => ({
+export const languagesRelations = relations(languages, ({ many }) => ({
 	users: many(users),
 }));
 
-export const onboardingTypesRelations = relations(onboardingTypes, ({many}) => ({
+export const onboardingTypesRelations = relations(onboardingTypes, ({ many }) => ({
 	users: many(users),
 }));
 
-export const creativesRelations = relations(creatives, ({one}) => ({
+export const creativesRelations = relations(creatives, ({ one }) => ({
 	creativesType: one(creativesTypes, {
 		fields: [creatives.typeId],
 		references: [creativesTypes.id]
 	}),
 }));
 
-export const creativesTypesRelations = relations(creativesTypes, ({many}) => ({
+export const creativesTypesRelations = relations(creativesTypes, ({ many }) => ({
 	creatives: many(creatives),
 }));
 
-export const eventLogsRelations = relations(eventLogs, ({one}) => ({
+export const eventLogsRelations = relations(eventLogs, ({ one }) => ({
 	eventMaster: one(eventMaster, {
 		fields: [eventLogs.eventId],
 		references: [eventMaster.id]
@@ -647,15 +647,15 @@ export const eventLogsRelations = relations(eventLogs, ({one}) => ({
 	}),
 }));
 
-export const eventMasterRelations = relations(eventMaster, ({many}) => ({
+export const eventMasterRelations = relations(eventMaster, ({ many }) => ({
 	eventLogs: many(eventLogs),
 }));
 
-export const skuLevel1MasterRelations = relations(skuLevel1Master, ({many}) => ({
-	skuLevel2Masters: many(skuLevel2Master),
-}));
+// export const skuLevel1MasterRelations = relations(skuLevel1Master, ({ many }) => ({
+// 	skuLevel2Masters: many(skuLevel2Master),
+// }));
 
-export const ticketsRelations = relations(tickets, ({one}) => ({
+export const ticketsRelations = relations(tickets, ({ one }) => ({
 	ticketStatus: one(ticketStatuses, {
 		fields: [tickets.statusId],
 		references: [ticketStatuses.id]
@@ -666,15 +666,15 @@ export const ticketsRelations = relations(tickets, ({one}) => ({
 	}),
 }));
 
-export const ticketStatusesRelations = relations(ticketStatuses, ({many}) => ({
+export const ticketStatusesRelations = relations(ticketStatuses, ({ many }) => ({
 	tickets: many(tickets),
 }));
 
-export const ticketTypesRelations = relations(ticketTypes, ({many}) => ({
+export const ticketTypesRelations = relations(ticketTypes, ({ many }) => ({
 	tickets: many(tickets),
 }));
 
-export const amazonMarketplaceProductsRelations = relations(amazonMarketplaceProducts, ({one, many}) => ({
+export const amazonMarketplaceProductsRelations = relations(amazonMarketplaceProducts, ({ one, many }) => ({
 	user: one(users, {
 		fields: [amazonMarketplaceProducts.uploadedBy],
 		references: [users.id]
@@ -682,7 +682,7 @@ export const amazonMarketplaceProductsRelations = relations(amazonMarketplacePro
 	amazonOrderItems: many(amazonOrderItems),
 }));
 
-export const userAmazonOrdersRelations = relations(userAmazonOrders, ({one, many}) => ({
+export const userAmazonOrdersRelations = relations(userAmazonOrders, ({ one, many }) => ({
 	user: one(users, {
 		fields: [userAmazonOrders.userId],
 		references: [users.id]
@@ -691,7 +691,7 @@ export const userAmazonOrdersRelations = relations(userAmazonOrders, ({one, many
 	amazonTickets: many(amazonTickets),
 }));
 
-export const amazonOrderItemsRelations = relations(amazonOrderItems, ({one}) => ({
+export const amazonOrderItemsRelations = relations(amazonOrderItems, ({ one }) => ({
 	userAmazonOrder: one(userAmazonOrders, {
 		fields: [amazonOrderItems.orderId],
 		references: [userAmazonOrders.userAmzOrderId]
@@ -702,7 +702,7 @@ export const amazonOrderItemsRelations = relations(amazonOrderItems, ({one}) => 
 	}),
 }));
 
-export const amazonTicketsRelations = relations(amazonTickets, ({one}) => ({
+export const amazonTicketsRelations = relations(amazonTickets, ({ one }) => ({
 	userAmazonOrder: one(userAmazonOrders, {
 		fields: [amazonTickets.orderId],
 		references: [userAmazonOrders.userAmzOrderId]
@@ -719,7 +719,7 @@ export const amazonTicketsRelations = relations(amazonTickets, ({one}) => ({
 	}),
 }));
 
-export const approvalAuditLogsRelations = relations(approvalAuditLogs, ({one}) => ({
+export const approvalAuditLogsRelations = relations(approvalAuditLogs, ({ one }) => ({
 	redemption: one(redemptions, {
 		fields: [approvalAuditLogs.redemptionId],
 		references: [redemptions.id]
@@ -734,7 +734,7 @@ export const approvalAuditLogsRelations = relations(approvalAuditLogs, ({one}) =
 	}),
 }));
 
-export const redemptionApprovalsRelations = relations(redemptionApprovals, ({one, many}) => ({
+export const redemptionApprovalsRelations = relations(redemptionApprovals, ({ one, many }) => ({
 	approvalAuditLogs: many(approvalAuditLogs),
 	redemption: one(redemptions, {
 		fields: [redemptionApprovals.redemptionId],
@@ -752,7 +752,7 @@ export const redemptionApprovalsRelations = relations(redemptionApprovals, ({one
 	}),
 }));
 
-export const physicalRewardsRedemptionsRelations = relations(physicalRewardsRedemptions, ({one}) => ({
+export const physicalRewardsRedemptionsRelations = relations(physicalRewardsRedemptions, ({ one }) => ({
 	user: one(users, {
 		fields: [physicalRewardsRedemptions.userId],
 		references: [users.id]
@@ -763,32 +763,32 @@ export const physicalRewardsRedemptionsRelations = relations(physicalRewardsRede
 	}),
 }));
 
-export const physicalRewardsCatalogueRelations = relations(physicalRewardsCatalogue, ({many}) => ({
+export const physicalRewardsCatalogueRelations = relations(physicalRewardsCatalogue, ({ many }) => ({
 	physicalRewardsRedemptions: many(physicalRewardsRedemptions),
 }));
 
-export const redemptionThresholdsRelations = relations(redemptionThresholds, ({one}) => ({
+export const redemptionThresholdsRelations = relations(redemptionThresholds, ({ one }) => ({
 	user: one(users, {
 		fields: [redemptionThresholds.createdBy],
 		references: [users.id]
 	}),
 }));
 
-export const userAmazonCartRelations = relations(userAmazonCart, ({one}) => ({
+export const userAmazonCartRelations = relations(userAmazonCart, ({ one }) => ({
 	user: one(users, {
 		fields: [userAmazonCart.userId],
 		references: [users.id]
 	}),
 }));
 
-export const userAmazonWishlistRelations = relations(userAmazonWishlist, ({one}) => ({
+export const userAmazonWishlistRelations = relations(userAmazonWishlist, ({ one }) => ({
 	user: one(users, {
 		fields: [userAmazonWishlist.userId],
 		references: [users.id]
 	}),
 }));
 
-export const userApprovalRolesRelations = relations(userApprovalRoles, ({one}) => ({
+export const userApprovalRolesRelations = relations(userApprovalRoles, ({ one }) => ({
 	user_userId: one(users, {
 		fields: [userApprovalRoles.userId],
 		references: [users.id],
@@ -805,11 +805,11 @@ export const userApprovalRolesRelations = relations(userApprovalRoles, ({one}) =
 	}),
 }));
 
-export const approvalRolesRelations = relations(approvalRoles, ({many}) => ({
+export const approvalRolesRelations = relations(approvalRoles, ({ many }) => ({
 	userApprovalRoles: many(userApprovalRoles),
 }));
 
-export const inappNotificationsRelations = relations(inappNotifications, ({one}) => ({
+export const inappNotificationsRelations = relations(inappNotifications, ({ one }) => ({
 	user: one(users, {
 		fields: [inappNotifications.userId],
 		references: [users.id]

@@ -13,6 +13,8 @@ import {
     TableHead,
     TableRow,
     LinearProgress,
+    CircularProgress,
+    Alert
 } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -29,6 +31,8 @@ import {
     Filler,
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
+import { useQuery } from "@tanstack/react-query";
+import { getDashboardDataAction } from "@/actions/dashboard-actions";
 
 // Register ChartJS components
 ChartJS.register(
@@ -44,7 +48,7 @@ ChartJS.register(
 );
 
 export default function DashboardClient() {
-    const { data: session, status } = useSession({
+    const { data: session, status: sessionStatus } = useSession({
         required: true,
         onUnauthenticated() {
             redirect("/login");
@@ -53,30 +57,40 @@ export default function DashboardClient() {
 
     // -- State for Charts & Filters --
     const [dateFilter, setDateFilter] = useState({ from: "", to: "" });
-    const [chartData, setChartData] = useState({
-        memberGrowth: [45, 52, 38, 65, 48, 72, 58],
-        pointsEarned: [12500, 15200, 11800, 18500, 14200, 22000, 16800],
-        pointsRedeemed: [8500, 9200, 7800, 10500, 8200, 12000, 9800],
+
+    // -- Fetch Dashboard Data --
+    const { data: dashboardData, isLoading, error } = useQuery({
+        queryKey: ['dashboard-data', dateFilter],
+        queryFn: () => getDashboardDataAction(dateFilter.from && dateFilter.to ? dateFilter : undefined),
+        // Poll every 30 seconds for live-like updates
+        refetchInterval: 30000
     });
 
-    if (status === "loading") {
-        return <div>Loading...</div>;
+
+    if (sessionStatus === "loading" || isLoading) {
+        return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;
+    }
+
+    if (error) {
+        return <Alert severity="error">Failed to load dashboard data. Please try again later.</Alert>;
     }
 
     // -- handlers --
     const handleApplyFilter = () => {
-        // Logic to fetch new data based on dateFilter
-        // keeping it simple for UI demo
+        // Logic handled by useQuery dependency on dateFilter state
         console.log("Applying filter:", dateFilter);
     };
 
     // -- Chart Configs --
+    // Using fetched chart data or defaulting to empty
+    const charts = dashboardData?.charts || { memberGrowth: [], pointsEarned: [], pointsRedeemed: [] };
+
     const lineChartData = {
         labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
         datasets: [
             {
                 label: "New Members",
-                data: chartData.memberGrowth,
+                data: charts.memberGrowth, // Mapped from backend
                 borderColor: "#3b82f6",
                 backgroundColor: "rgba(59, 130, 246, 0.1)",
                 tension: 0.4,
@@ -102,14 +116,14 @@ export default function DashboardClient() {
         datasets: [
             {
                 label: "Points Earned",
-                data: chartData.pointsEarned,
+                data: charts.pointsEarned,
                 backgroundColor: "#10b981",
                 borderRadius: 5,
                 barPercentage: 0.6,
             },
             {
                 label: "Points Redeemed",
-                data: chartData.pointsRedeemed,
+                data: charts.pointsRedeemed,
                 backgroundColor: "#f59e0b",
                 borderRadius: 5,
                 barPercentage: 0.6,
@@ -129,6 +143,13 @@ export default function DashboardClient() {
         },
     };
 
+    const stats = dashboardData?.stats;
+
+    // Calculate percentages for bars
+    const activePercent = stats?.totalMembers ? Math.round((stats.activeMembers / stats.totalMembers) * 100) : 0;
+    const blockedPercent = stats?.totalMembers ? Math.round((stats.blockedMembers / stats.totalMembers) * 100) : 0;
+    const kycPercent = stats?.totalMembers ? Math.round((stats.kycApproved / stats.totalMembers) * 100) : 0;
+
     return (
         <Box>
             {/* 1. KEY METRICS ROW */}
@@ -143,11 +164,11 @@ export default function DashboardClient() {
                             <i className="fas fa-users text-blue-500 text-lg"></i>
                         </Box>
                         <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                            12,847
+                            {stats?.totalMembers?.toLocaleString() ?? 0}
                         </Typography>
                         <Box display="flex" alignItems="center" fontSize="0.875rem">
-                            <span className="text-green-600 font-medium mr-2">+12.5%</span>
-                            <span className="text-gray-500">from last month</span>
+                            <span className="text-green-600 font-medium mr-2">--</span>
+                            <span className="text-gray-500">Registered</span>
                         </Box>
                     </div>
                 </Grid>
@@ -162,11 +183,10 @@ export default function DashboardClient() {
                             <i className="fas fa-user-check text-green-500 text-lg"></i>
                         </Box>
                         <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                            8,432
+                            {stats?.activeMembers?.toLocaleString() ?? 0}
                         </Typography>
                         <Box display="flex" alignItems="center" fontSize="0.875rem">
-                            <span className="text-green-600 font-medium mr-2">+8.2%</span>
-                            <span className="text-gray-500">from last month</span>
+                            <span className="text-gray-500">{activePercent}% of total</span>
                         </Box>
                     </div>
                 </Grid>
@@ -181,11 +201,10 @@ export default function DashboardClient() {
                             <i className="fas fa-coins text-yellow-500 text-lg"></i>
                         </Box>
                         <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                            2.4M
+                            {stats?.totalPointsIssued?.toLocaleString() ?? 0}
                         </Typography>
                         <Box display="flex" alignItems="center" fontSize="0.875rem">
-                            <span className="text-green-600 font-medium mr-2">+18.7%</span>
-                            <span className="text-gray-500">from last month</span>
+                            <span className="text-gray-500">Lifetime</span>
                         </Box>
                     </div>
                 </Grid>
@@ -200,11 +219,10 @@ export default function DashboardClient() {
                             <i className="fas fa-gift text-purple-500 text-lg"></i>
                         </Box>
                         <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                            1.8M
+                            {stats?.pointsRedeemed?.toLocaleString() ?? 0}
                         </Typography>
                         <Box display="flex" alignItems="center" fontSize="0.875rem">
-                            <span className="text-orange-600 font-medium mr-2">+5.3%</span>
-                            <span className="text-gray-500">from last month</span>
+                            <span className="text-gray-500">Lifetime</span>
                         </Box>
                     </div>
                 </Grid>
@@ -222,11 +240,10 @@ export default function DashboardClient() {
                             <i className="fas fa-qrcode text-indigo-500 text-lg"></i>
                         </Box>
                         <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                            24,832
+                            {stats?.totalScans?.toLocaleString() ?? 0}
                         </Typography>
                         <Box display="flex" alignItems="center" fontSize="0.875rem" mb={2}>
-                            <span className="text-green-600 font-medium mr-2">+15.2%</span>
-                            <span className="text-gray-500">from last period</span>
+                            <span className="text-gray-500">All channels</span>
                         </Box>
 
                         {/* Date Filter Inputs */}
@@ -244,6 +261,7 @@ export default function DashboardClient() {
                                 value={dateFilter.to}
                                 onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
                             />
+                            {/* Filter is auto-applied via state, but keeping button for visual confirmation */}
                             <Button
                                 variant="contained"
                                 size="small"
@@ -268,22 +286,22 @@ export default function DashboardClient() {
 
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <div className="text-center">
-                                <Typography variant="h5" fontWeight="bold">9,523</Typography>
+                                <Typography variant="h5" fontWeight="bold">{stats?.kycApproved?.toLocaleString()}</Typography>
                                 <Typography variant="caption" color="text.secondary">Approved</Typography>
                             </div>
                             <div className="text-center">
-                                <Typography variant="h5" fontWeight="bold" color="warning.main">3,324</Typography>
+                                <Typography variant="h5" fontWeight="bold" color="warning.main">{stats?.kycPending?.toLocaleString()}</Typography>
                                 <Typography variant="caption" color="text.secondary">Pending</Typography>
                             </div>
                         </Box>
 
                         <LinearProgress
                             variant="determinate"
-                            value={74}
+                            value={kycPercent}
                             sx={{ height: 8, borderRadius: 4, bgcolor: "grey.200", "& .MuiLinearProgress-bar": { bgcolor: "primary.main" } }}
                         />
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                            74% of members have completed KYC
+                            {kycPercent}% of members have completed KYC
                         </Typography>
                     </div>
                 </Grid>
@@ -300,22 +318,22 @@ export default function DashboardClient() {
 
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <div className="text-center">
-                                <Typography variant="h5" fontWeight="bold">10,428</Typography>
+                                <Typography variant="h5" fontWeight="bold">{stats?.activeMembers?.toLocaleString()}</Typography>
                                 <Typography variant="caption" color="text.secondary">Active</Typography>
                             </div>
                             <div className="text-center">
-                                <Typography variant="h5" fontWeight="bold" color="error.main">2,419</Typography>
+                                <Typography variant="h5" fontWeight="bold" color="error.main">{stats?.blockedMembers?.toLocaleString()}</Typography>
                                 <Typography variant="caption" color="text.secondary">Blocked</Typography>
                             </div>
                         </Box>
 
                         <LinearProgress
                             variant="determinate"
-                            value={81}
+                            value={activePercent}
                             sx={{ height: 8, borderRadius: 4, bgcolor: "grey.200", "& .MuiLinearProgress-bar": { bgcolor: "primary.main" } }}
                         />
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                            81% of users are active
+                            {activePercent}% of users are active
                         </Typography>
                     </div>
                 </Grid>
@@ -328,10 +346,9 @@ export default function DashboardClient() {
                     <div className="widget-card p-6 w-full">
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                             <Typography variant="h6" fontWeight="bold">Member Growth</Typography>
+                            {/* Charts currently mock dynamic data, so select is placeholder */}
                             <select className="text-sm border border-gray-300 rounded px-2 py-1 outline-none">
                                 <option>Last 7 days</option>
-                                <option>Last 30 days</option>
-                                <option>Last 3 months</option>
                             </select>
                         </Box>
                         <Box sx={{ height: 300 }}>
@@ -347,8 +364,6 @@ export default function DashboardClient() {
                             <Typography variant="h6" fontWeight="bold">Points Transactions</Typography>
                             <select className="text-sm border border-gray-300 rounded px-2 py-1 outline-none">
                                 <option>Last 7 days</option>
-                                <option>Last 30 days</option>
-                                <option>Last 3 months</option>
                             </select>
                         </Box>
                         <Box sx={{ height: 300 }}>
@@ -365,37 +380,18 @@ export default function DashboardClient() {
                     <div className="widget-card p-6 h-full w-full">
                         <Typography variant="h6" fontWeight="bold" mb={3}>Quick Actions</Typography>
                         <Box display="flex" flexDirection="column" gap={2}>
-                            <button className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center justify-between group cursor-pointer border-none">
-                                <div className="flex items-center">
-                                    <i className="fas fa-user-plus text-blue-600 mr-3 w-5 text-center"></i>
-                                    <span className="text-sm font-medium text-gray-700">Add New Member</span>
-                                </div>
-                                <i className="fas fa-arrow-right text-blue-600 opacity-0 group-hover:opacity-100 transition"></i>
-                            </button>
-
-                            <button className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition flex items-center justify-between group cursor-pointer border-none">
-                                <div className="flex items-center">
-                                    <i className="fas fa-qrcode text-green-600 mr-3 w-5 text-center"></i>
-                                    <span className="text-sm font-medium text-gray-700">Generate QR Code</span>
-                                </div>
-                                <i className="fas fa-arrow-right text-green-600 opacity-0 group-hover:opacity-100 transition"></i>
-                            </button>
-
-                            <button className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition flex items-center justify-between group cursor-pointer border-none">
-                                <div className="flex items-center">
-                                    <i className="fas fa-bullhorn text-purple-600 mr-3 w-5 text-center"></i>
-                                    <span className="text-sm font-medium text-gray-700">Create Campaign</span>
-                                </div>
-                                <i className="fas fa-arrow-right text-purple-600 opacity-0 group-hover:opacity-100 transition"></i>
-                            </button>
-
-                            <button className="w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition flex items-center justify-between group cursor-pointer border-none">
-                                <div className="flex items-center">
-                                    <i className="fas fa-chart-line text-orange-600 mr-3 w-5 text-center"></i>
-                                    <span className="text-sm font-medium text-gray-700">View Reports</span>
-                                </div>
-                                <i className="fas fa-arrow-right text-orange-600 opacity-0 group-hover:opacity-100 transition"></i>
-                            </button>
+                            <Button className="w-full justify-start py-3 px-4 bg-blue-50 hover:bg-blue-100 text-gray-700" startIcon={<i className="fas fa-user-plus text-blue-600"></i>}>
+                                Add New Member
+                            </Button>
+                            <Button className="w-full justify-start py-3 px-4 bg-green-50 hover:bg-green-100 text-gray-700" startIcon={<i className="fas fa-qrcode text-green-600"></i>}>
+                                Generate QR Code
+                            </Button>
+                            <Button className="w-full justify-start py-3 px-4 bg-purple-50 hover:bg-purple-100 text-gray-700" startIcon={<i className="fas fa-bullhorn text-purple-600"></i>}>
+                                Create Campaign
+                            </Button>
+                            <Button className="w-full justify-start py-3 px-4 bg-orange-50 hover:bg-orange-100 text-gray-700" startIcon={<i className="fas fa-chart-line text-orange-600"></i>}>
+                                View Reports
+                            </Button>
                         </Box>
                     </div>
                 </Grid>
@@ -419,12 +415,7 @@ export default function DashboardClient() {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {[
-                                        { id: "#TXN-2847", member: "John Doe", type: "Earned", points: "+250", time: "2 mins ago", typeClass: "badge-success", ptClass: "text-green-600" },
-                                        { id: "#TXN-2846", member: "Alice Smith", type: "Redeemed", points: "-500", time: "5 mins ago", typeClass: "badge-warning", ptClass: "text-red-600" },
-                                        { id: "#TXN-2845", member: "Robert Johnson", type: "Earned", points: "+180", time: "12 mins ago", typeClass: "badge-success", ptClass: "text-green-600" },
-                                        { id: "#TXN-2844", member: "Emma Wilson", type: "Earned", points: "+320", time: "18 mins ago", typeClass: "badge-success", ptClass: "text-green-600" },
-                                    ].map((row) => (
+                                    {dashboardData?.recentActivity?.map((row: any) => (
                                         <TableRow key={row.id}>
                                             <TableCell sx={{ fontSize: '0.875rem' }}>{row.id}</TableCell>
                                             <TableCell sx={{ fontSize: '0.875rem' }}>{row.member}</TableCell>
@@ -435,6 +426,11 @@ export default function DashboardClient() {
                                             <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>{row.time}</TableCell>
                                         </TableRow>
                                     ))}
+                                    {(!dashboardData?.recentActivity || dashboardData.recentActivity.length === 0) && (
+                                        <TableRow>
+                                            <TableCell colSpan={5} align="center">No recent transactions found</TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </TableContainer>
@@ -449,11 +445,7 @@ export default function DashboardClient() {
                     <div className="widget-card p-6 w-full">
                         <Typography variant="h6" fontWeight="bold" mb={3}>Top Performers This Month</Typography>
                         <div className="space-y-4">
-                            {[
-                                { name: "Michael Chen", pts: "2,450 points", change: "+28%", rank: 1, initial: "1", bg: "bg-yellow-100", text: "text-yellow-800" },
-                                { name: "Sarah Williams", pts: "2,180 points", change: "+15%", rank: 2, initial: "2", bg: "bg-gray-100", text: "text-gray-800" },
-                                { name: "David Martinez", pts: "1,920 points", change: "+32%", rank: 3, initial: "3", bg: "bg-orange-100", text: "text-orange-800" },
-                            ].map((p, i) => (
+                            {dashboardData?.topPerformers?.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between">
                                     <div className="flex items-center">
                                         <div className={`h-10 w-10 rounded-full ${p.bg} flex items-center justify-center mr-3`}>
@@ -470,6 +462,9 @@ export default function DashboardClient() {
                                     </div>
                                 </div>
                             ))}
+                            {(!dashboardData?.topPerformers || dashboardData.topPerformers.length === 0) && (
+                                <Typography variant="body2" color="text.secondary" textAlign="center">No performance data available</Typography>
+                            )}
                         </div>
                     </div>
                 </Grid>
@@ -479,30 +474,22 @@ export default function DashboardClient() {
                     <div className="widget-card p-6 w-full">
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                             <Typography variant="h6" fontWeight="bold">Pending Approvals</Typography>
-                            <span className="badge badge-warning">12 items</span>
+                            <span className="badge badge-warning">{dashboardData?.pendingApprovalsCount ?? 0} items</span>
                         </Box>
+                        {/* 
+                           Note: The detailed list wasn't fetched in the light dashboard action.
+                           Showing a placeholder or generic list if count > 0, or empty state.
+                           For now, we'll show a "Go to Approvals" link if items exist.
+                        */}
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">Redemption Request</p>
-                                    <p className="text-xs text-gray-500">John Doe - 500 points</p>
-                                </div>
-                                <button className="text-xs font-medium text-orange-600 hover:text-orange-800 uppercase border-none bg-transparent cursor-pointer">Review</button>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">Scan Transaction</p>
-                                    <p className="text-xs text-gray-500">Alice Smith - ₹2,500</p>
-                                </div>
-                                <button className="text-xs font-medium text-blue-600 hover:text-blue-800 uppercase border-none bg-transparent cursor-pointer">Review</button>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">Bulk Points Credit</p>
-                                    <p className="text-xs text-gray-500">45 members - 22,500 points</p>
-                                </div>
-                                <button className="text-xs font-medium text-purple-600 hover:text-purple-800 uppercase border-none bg-transparent cursor-pointer">Review</button>
-                            </div>
+                            {dashboardData?.pendingApprovalsCount > 0 ? (
+                                <Box textAlign="center" py={2}>
+                                    <Typography variant="body2" mb={2}>You have {dashboardData.pendingApprovalsCount} pending redemption requests.</Typography>
+                                    <Button variant="outlined" size="small">View All Approvals</Button>
+                                </Box>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary" textAlign="center">No pending approvals</Typography>
+                            )}
                         </div>
                     </div>
                 </Grid>
