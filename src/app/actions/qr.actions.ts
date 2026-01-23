@@ -36,3 +36,13 @@ export async function fetchQrFileAction(batchId: number) {
         return { success: false, message: error.message || "Failed to fetch QR file" };
     }
 }
+
+export async function toggleQrBatchStatusAction(batchId: number, isActive: boolean) {
+    try {
+        const result = await qrService.toggleBatchStatus(batchId, isActive);
+        return result;
+    } catch (error: any) {
+        console.error("Failed to toggle QR batch status:", error);
+        return { success: false, message: error.message || "Failed to toggle QR batch status" };
+    }
+}

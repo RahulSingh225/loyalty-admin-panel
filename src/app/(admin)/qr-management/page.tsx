@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 
 // Removed fetchSkus as we now use fetchVariantsAction
-import { generateQrCodeAction, fetchQrHistory, fetchQrFileAction } from '@/app/actions/qr.actions';
+import { generateQrCodeAction, fetchQrHistory, fetchQrFileAction, toggleQrBatchStatusAction } from '@/app/actions/qr.actions';
 import {
   fetchL1Action,
   fetchL2Action,
@@ -278,6 +278,22 @@ export default function QRGeneration() {
     }
   };
 
+  const handleStatusToggle = async (batchId: number, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      const result = await toggleQrBatchStatusAction(batchId, newStatus);
+      if (result.success) {
+        // Reload batches to reflect changes
+        await loadQrBatches();
+      } else {
+        alert('Failed to update status: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Status toggle error:', error);
+      alert('Failed to update status');
+    }
+  };
+
   const handleDownload = async (batchId: number) => {
     try {
       const result = await fetchQrFileAction(batchId);
@@ -440,6 +456,7 @@ export default function QRGeneration() {
                     <TableCell>Quantity</TableCell>
                     <TableCell>Created Date</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Action</TableCell>
                     <TableCell>Download</TableCell>
                   </TableRow>
                 </TableHead>
@@ -478,6 +495,16 @@ export default function QRGeneration() {
                               fontWeight: 'medium'
                             }}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="text"
+                            size="small"
+                            color={batch.isActive ? "error" : "success"}
+                            onClick={() => handleStatusToggle(batch.batchId, batch.isActive)}
+                          >
+                            {batch.isActive ? "Make Inactive" : "Make Active"}
+                          </Button>
                         </TableCell>
                         <TableCell>
                           {batch.fileUrl ? (

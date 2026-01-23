@@ -1,5 +1,5 @@
 import { db } from "@/db/index";
-import { tblInventoryBatch as inventoryBatch } from "@/db/schema";
+import { tblInventoryBatch as inventoryBatch, tblInventory as inventory } from "@/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { CustomError } from "../../types";
 
@@ -63,6 +63,27 @@ class InventoryBatchRepository {
             return result.length > 0 ? result[0] : null;
         } catch (error: any) {
             this.customError.responseMessage = error.message || "Failed to fetch Inventory Batch.";
+            throw this.customError;
+        }
+    }
+
+    async updateBatchStatus(batchId: number, isActive: boolean): Promise<any> {
+        try {
+            return await db.transaction(async (tx) => {
+                // Update batch status
+                await tx
+                    .update(inventoryBatch)
+                    .set({ isActive: isActive })
+                    .where(eq(inventoryBatch.batchId, batchId));
+
+                // Update inventory items status for this batch
+                await tx
+                    .update(inventory)
+                    .set({ isActive: isActive })
+                    .where(eq(inventory.batchId, batchId));
+            });
+        } catch (error: any) {
+            this.customError.responseMessage = error.message || "Failed to update Inventory Batch status.";
             throw this.customError;
         }
     }
