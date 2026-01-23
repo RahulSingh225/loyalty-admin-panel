@@ -20,6 +20,7 @@ import {
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { getProcessDataAction } from '@/actions/process-actions'
+import AmazonProductsClient from './AmazonProductsClient';
 
 export default function ProcessClient() {
     const { data } = useQuery({
@@ -79,6 +80,7 @@ export default function ProcessClient() {
                 >
                     <Tab label="Scan/Transaction Requests" />
                     <Tab label="Redemption Requests" />
+                    <Tab label="Amazon Marketplace" />
                     <Tab label="Manual Entry" />
                 </Tabs>
             </Box>
@@ -346,6 +348,10 @@ export default function ProcessClient() {
             )}
 
             {activeTab === 2 && (
+                <AmazonProductsClient />
+            )}
+
+            {activeTab === 3 && (
                 <Box>
                     {/* MANUAL ENTRY FORM */}
                     <div className="widget-card p-8 max-w-2xl mx-auto">

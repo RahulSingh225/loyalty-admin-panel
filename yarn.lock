@@ -2543,6 +2543,19 @@
     "@smithy/types" "^3.7.2"
     tslib "^2.6.2"
 
+"@superset-ui/embedded-sdk@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@superset-ui/embedded-sdk/-/embedded-sdk-0.3.0.tgz#07572b06df3e64cf883d822a93302c7c895a7c4c"
+  integrity sha512-Q1ttlQy5H69pvJ29K5mY3/7awzwmOgTyEa/IzGwIZKlz0/dpV8GT/6zPic8C88TMJpkt5cDlpj8B1aUZm+K7Qg==
+  dependencies:
+    "@superset-ui/switchboard" "^0.20.3"
+    jwt-decode "^4.0.0"
+
+"@superset-ui/switchboard@^0.20.3":
+  version "0.20.3"
+  resolved "https://registry.yarnpkg.com/@superset-ui/switchboard/-/switchboard-0.20.3.tgz#9037c64408dfb6b0291671fa0a136fb32b9511db"
+  integrity sha512-qEMXFwdRLfXug4gXXdBEGpFtBWZoxdZkCJLBVxj1IR8cQvSqjkWAQOzSSYYdcIeREWqi8iP+iK6apNV1ZQCKcA==
+
 "@swc/helpers@0.5.15":
   version "0.5.15"
   resolved "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.15.tgz"
@@ -5212,6 +5225,11 @@ jws@^4.0.0:
   dependencies:
     jwa "^2.0.0"
     safe-buffer "^5.0.1"
+
+jwt-decode@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/jwt-decode/-/jwt-decode-4.0.0.tgz#2270352425fd413785b2faf11f6e755c5151bd4b"
+  integrity sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==
 
 keyv@^4.5.4:
   version "4.5.4"

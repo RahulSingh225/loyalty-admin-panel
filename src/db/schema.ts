@@ -4,6 +4,9 @@ import { sql } from "drizzle-orm"
 export const blockStatus = pgEnum("block_status", ['basic_registration', 'phone_number_verified', 'digilocker', 'pan_verification', 'gst_number_verification', 'bank_account_verified', 'pending_kyc_verification', 'profile_updated', 'none'])
 export const inventoryType = pgEnum("inventory_type", ['inner', 'outer'])
 export const otpType = pgEnum("otp_type", ['login', 'password_reset', 'registration', 'kyc'])
+export const notificationTriggerType = pgEnum("notification_trigger_type", ['automated', 'campaign', 'manual'])
+export const notificationChannel = pgEnum("notification_channel", ['sms', 'push'])
+export const notificationStatus = pgEnum("notification_status", ['pending', 'sent', 'failed', 'delivered'])
 
 
 export const auditLogs = pgTable("audit_logs", {
@@ -310,11 +313,17 @@ export const eventMaster = pgTable("event_master", {
 	name: text().notNull(),
 	description: text(),
 	category: text(),
+	templateId: integer("template_id"),
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 }, (table) => [
 	unique("event_master_event_key_key").on(table.eventKey),
 	unique("event_master_name_key").on(table.name),
+	foreignKey({
+		columns: [table.templateId],
+		foreignColumns: [notificationTemplates.id],
+		name: "event_master_template_id_fkey"
+	}),
 ]);
 
 export const locationEntity = pgTable("location_entity", {
@@ -1664,5 +1673,43 @@ export const inappNotifications = pgTable("inapp_notifications", {
 		columns: [table.userId],
 		foreignColumns: [users.id],
 		name: "inapp_notifications_user_id_fkey"
+	}),
+]);
+
+export const notificationTemplates = pgTable("notification_templates", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	slug: text().unique().notNull(),
+	triggerType: notificationTriggerType("trigger_type").notNull().default('automated'),
+	pushTitle: text("push_title"),
+	pushBody: text("push_body"),
+	smsBody: text("sms_body"),
+	placeholders: jsonb().default([]),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+
+
+export const notificationLogs = pgTable("notification_logs", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id").notNull(),
+	channel: notificationChannel().notNull(),
+	templateId: integer("template_id"),
+	triggerType: notificationTriggerType("trigger_type").notNull(),
+	status: notificationStatus().default('pending'),
+	metadata: jsonb().default({}),
+	sentAt: timestamp("sent_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "notification_logs_user_id_fkey"
+	}),
+	foreignKey({
+		columns: [table.templateId],
+		foreignColumns: [notificationTemplates.id],
+		name: "notification_logs_template_id_fkey"
 	}),
 ]);

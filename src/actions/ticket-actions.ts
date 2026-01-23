@@ -5,6 +5,7 @@ import { tickets, users, ticketTypes, ticketStatuses, electricians, retailers, c
 import { desc, eq, or, ilike, sql, and } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { revalidatePath } from "next/cache"
+import { NotificationService } from "@/server/services/notification.service"
 
 export interface TicketFilters {
     searchTerm?: string;
@@ -237,6 +238,20 @@ export async function updateTicketAction(ticketId: number, data: {
                 updatedAt: sql`CURRENT_TIMESTAMP`
             })
             .where(eq(tickets.id, ticketId));
+
+        // Trigger Notification
+        if (data.statusId || data.assigneeId) {
+            const [ticket] = await db.select().from(tickets).where(eq(tickets.id, ticketId));
+            if (ticket) {
+                const eventKey = data.statusId ? 'TICKET_STATUS_UPDATE' : 'TICKET_ASSIGNED';
+                await NotificationService.triggerNotification(eventKey, ticket.createdBy, {
+                    ticketId: `TKT-${ticket.id}`,
+                    subject: ticket.subject,
+                    statusId: data.statusId,
+                    assigneeId: data.assigneeId
+                });
+            }
+        }
 
         revalidatePath('/tickets');
         return { success: true };
