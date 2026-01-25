@@ -85,13 +85,13 @@ export default function MisClient() {
                         mountPoint: dashboardRef.current!,
                         fetchGuestToken: () => Promise.resolve(token),
                         dashboardUiConfig: {
-                            hideTitle: true,
-                            hideChartControls: false,
-                            hideTab: true,
+                            //hideTitle: true,
+                            //hideChartControls: false,
+                            //hideTab: true,
                             filters: {
                                 expanded: true,
                             },
-                            urlParams: { standalone: "3" }
+                            urlParams: { standalone: 3 }
                         },
                     });
                 } catch (error) {
