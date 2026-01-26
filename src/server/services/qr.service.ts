@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { Broker } from '@/server/rabbitMq/broker';
+import { RabbitMQConnector } from '@/server/rabbitMq/broker';
 import { GenerateQrPayload, CustomError } from '@/lib/types';
 import { customValidators } from '@/lib/utils/custom-validators';
 import { inventoryBatchRepository } from '@/server/repositories';
@@ -18,13 +18,9 @@ class QrService {
             if (!doesSkuExist) {
                 return { success: false, message: 'SKU (Variant) not present', status: 404 };
             }
-            const brokerObject = new Broker();
-            await brokerObject.publish({
-                exchange: 'qrExchange',
-                binding_key: 'relaxwell',
-                type: 'direct',
-                payload: { payload }
-            });
+            const brokerObject = new RabbitMQConnector();
+            await brokerObject.publish('qrExchange', 'relaxwell', { payload });
+            }
 
             return { success: true, message: 'Qr Generation In progress please check after some time' };
         } catch (error: any) {
@@ -35,7 +31,7 @@ class QrService {
                 status: error.responseCode || 500
             };
         }
-    }
+    
 
     async getQrHistory(page: number = 0, limit: number = 10, filters?: { searchTerm?: string, status?: string }) {
         try {
