@@ -682,61 +682,95 @@ export default function MisClient() {
             </div>
 
             {/* --- TAB 4: REPORTS --- */}
-            <div role="tabpanel" hidden={activeTab !== 4} style={{ height: 'calc(100vh - 200px)', display: activeTab === 4 ? 'block' : 'none' }}>
+            <div role="tabpanel" hidden={activeTab !== 4}>
                 {activeTab === 4 && (
-                    <Box display="flex" height="100%">
-                        {/* Side Card / Sidebar */}
-                        <aside style={{ width: '280px', background: '#f4f4f4', padding: '20px', overflowY: 'auto' }} className="rounded-l-xl border-r border-gray-200">
-                            <Typography variant="h6" fontWeight="600" mb={2}>Available Reports</Typography>
-                            <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {availableReports.map((report: any) => (
-                                    <li key={report.id} style={{ marginBottom: '10px' }}>
+                    <Box className="flex flex-col lg:flex-row gap-6 mt-4">
+                        {/* Report Categories Sidebar */}
+                        <div className="w-full lg:w-72 flex-shrink-0">
+                            <div className="widget-card rounded-xl shadow p-4 bg-white h-full">
+                                <Typography variant="h6" className="text-lg font-semibold text-gray-800 mb-4 px-2">
+                                    Available Reports
+                                </Typography>
+                                <nav className="space-y-1">
+                                    {availableReports.map((report: any) => (
                                         <button
+                                            key={report.id}
                                             onClick={() => setActiveReport(report)}
-                                            style={{
-                                                width: '100%',
-                                                textAlign: 'left',
-                                                padding: '10px',
-                                                cursor: 'pointer',
-                                                background: activeReport?.id === report.id ? '#ddd' : '#fff',
-                                                border: '1px solid #ccc',
-                                                borderRadius: '8px'
-                                            }}
-                                            className="hover:bg-gray-100 transition-colors"
+                                            className={`w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${activeReport?.id === report.id
+                                                    ? 'bg-blue-50 text-blue-700'
+                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                }`}
                                         >
-                                            <Typography variant="body2" fontWeight={500}>{report.title}</Typography>
+                                            <i className={`fas ${activeReport?.id === report.id ? 'fa-chart-pie' : 'fa-file-alt'
+                                                } mr-3 ${activeReport?.id === report.id ? 'text-blue-500' : 'text-gray-400'
+                                                }`}></i>
+                                            <span className="truncate text-left">{report.title}</span>
                                         </button>
-                                    </li>
-                                ))}
-                                {availableReports.length === 0 && (
-                                    <Typography variant="body2" color="text.secondary">No reports available.</Typography>
-                                )}
-                            </ul>
-                        </aside>
+                                    ))}
+                                    {availableReports.length === 0 && (
+                                        <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                                            No reports found
+                                        </div>
+                                    )}
+                                </nav>
+                            </div>
+                        </div>
 
-                        {/* Main Report View */}
-                        <main style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} className="bg-white rounded-r-xl">
-                            <style dangerouslySetInnerHTML={{
-                                __html: `
-                                .superset-container iframe {
-                                    width: 100% !important;
-                                    height: 100% !important;
-                                    border: none !important;
-                                    display: block !important;
-                                }
-                            `}} />
-                            {activeReport ? (
-                                <div
-                                    ref={dashboardRef}
-                                    style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}
-                                    className="superset-container"
-                                />
-                            ) : (
-                                <div style={{ padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                    <Typography variant="h6" color="text.secondary">Select a report from the sidebar to begin.</Typography>
+                        {/* Report Content */}
+                        <div className="flex-1 min-h-[600px]">
+                            <div className="widget-card rounded-xl shadow p-6 bg-white h-full flex flex-col">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 border-b border-gray-100 pb-4">
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-gray-800">
+                                            {activeReport ? activeReport.title : 'Select a Report'}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            {activeReport ? 'View and analyze detailed insights' : 'Choose a report from the sidebar to get started'}
+                                        </p>
+                                    </div>
+                                    {/* Action Buttons (Visual only for now as Superset handles its own exports mostly, but keeping for UI match) */}
+                                    {activeReport && (
+                                        <div className="mt-4 md:mt-0 flex space-x-2">
+                                            <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition shadow-sm">
+                                                <i className="fas fa-sync-alt mr-2"></i> Refresh
+                                            </button>
+                                            <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
+                                                <i className="fas fa-download mr-2"></i> Export
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </main>
+
+                                {/* Superset Container */}
+                                <div className="flex-1 relative bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                    <style dangerouslySetInnerHTML={{
+                                        __html: `
+                                        .superset-container iframe {
+                                            width: 100% !important;
+                                            height: 100% !important;
+                                            border: none !important;
+                                            display: block !important;
+                                        }
+                                    `}} />
+                                    {activeReport ? (
+                                        <div
+                                            ref={dashboardRef}
+                                            className="superset-container w-full h-full min-h-[600px]"
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                                <i className="fas fa-chart-bar text-2xl text-gray-300"></i>
+                                            </div>
+                                            <Typography variant="body1">No Report Selected</Typography>
+                                            <Typography variant="body2" className="mt-2 text-center max-w-xs">
+                                                Select a report from the list on the left to view the dashboard here.
+                                            </Typography>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </Box>
                 )}
             </div>

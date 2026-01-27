@@ -118,17 +118,20 @@ export async function getAllAvailableReports() {
     const { accessToken } = await getSupersetAdminToken(); // Your existing login logic
 
     // 1. Get the list of all dashboards
+
+    const temp = `${SUPERSET_URL}/api/v1/dashboard/?q=(columns:!(id,dashboard_title,slug))`
     const response = await fetch(`${SUPERSET_URL}/api/v1/dashboard/?q=(columns:!(id,dashboard_title,slug))`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
+    console.log(response.body, 'KOKSOSKO')
     const { result } = await response.json();
-
+    console.log(result, 'OKOKSOKS')
     // 2. For each dashboard, fetch its Embedded UUID
     const reports = await Promise.all(result.map(async (dash: any) => {
         const embedRes = await fetch(`${SUPERSET_URL}/api/v1/dashboard/${dash.id}/embedded`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-
+        console.log(embedRes, 'KOKSOSKO')
         if (embedRes.ok) {
             const embedData = await embedRes.json();
             return {
