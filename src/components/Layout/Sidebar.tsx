@@ -13,7 +13,9 @@ import {
   Box,
   Avatar,
   Divider,
-  Collapse
+  Collapse,
+  Tooltip,
+  IconButton
 } from '@mui/material'
 import {
   Dashboard,
@@ -32,7 +34,9 @@ import {
   Group,
   Tune,
   ExpandLess,
-  ExpandMore
+  ExpandMore,
+  ChevronLeft,
+  ChevronRight
 } from '@mui/icons-material'
 import Link from 'next/link'
 
@@ -51,7 +55,7 @@ const menuItems: NavigationItem[] = [
     path: '/masters-config',
 
   },
-  { text: 'Schemes & Campaigns', icon: <Campaign />, path: '/schemes-campaigns' },
+  //{ text: 'Schemes & Campaigns', icon: <Campaign />, path: '/schemes-campaigns' },
   { text: 'QR Management', icon: <QrCode />, path: '/qr-management' },
   { text: 'Communication', icon: <Announcement />, path: '/communication' },
   { text: 'Finance & Compliance', icon: <AccountBalance />, path: '/finance-compliance' },
@@ -67,15 +71,19 @@ const menuItems: NavigationItem[] = [
 ]
 
 interface SidebarProps {
-  currentPath: string
+  currentPath: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export default function Sidebar({ currentPath }: SidebarProps) {
+export default function Sidebar({ currentPath, collapsed = false, onToggleCollapse }: SidebarProps) {
   const [openItems, setOpenItems] = useState<string[]>([])
   const { data: session } = useSession()
   const router = useRouter()
 
   const handleItemClick = (item: NavigationItem) => {
+    if (collapsed) return; // Don't expand children if collapsed for now, or could expand sidebar
+
     if (item.children) {
       setOpenItems(prev =>
         prev.includes(item.text)
@@ -96,32 +104,48 @@ export default function Sidebar({ currentPath }: SidebarProps) {
       <List sx={{ flexGrow: 1, py: 1 }}>
         {menuItems.map((item) => (
           <Box key={item.text}>
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={isItemActive(item.path)}
-                onClick={() => handleItemClick(item)}
-                sx={{
-                  '&.Mui-selected': {
-                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                    color: 'primary.main',
-                    '& .MuiListItemIcon-root': {
-                      color: 'primary.main'
+            <Tooltip title={collapsed ? item.text : ""} placement="right">
+              <ListItem disablePadding sx={{ display: 'block' }}>
+                <ListItemButton
+                  selected={isItemActive(item.path)}
+                  onClick={() => handleItemClick(item)}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: collapsed ? 'center' : 'initial',
+                    px: 2.5,
+                    '&.Mui-selected': {
+                      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                      color: 'primary.main',
+                      '& .MuiListItemIcon-root': {
+                        color: 'primary.main'
+                      }
+                    },
+                    '&:hover': {
+                      backgroundColor: 'rgba(37, 99, 235, 0.04)'
                     }
-                  },
-                  '&:hover': {
-                    backgroundColor: 'rgba(37, 99, 235, 0.04)'
-                  }
-                }}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
-                {item.children && (
-                  openItems.includes(item.text) ? <ExpandLess /> : <ExpandMore />
-                )}
-              </ListItemButton>
-            </ListItem>
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      mr: collapsed ? 0 : 3,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    sx={{ opacity: collapsed ? 0 : 1, display: collapsed ? 'none' : 'block' }}
+                  />
+                  {!collapsed && item.children && (
+                    openItems.includes(item.text) ? <ExpandLess /> : <ExpandMore />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            </Tooltip>
 
-            {item.children && (
+            {!collapsed && item.children && (
               <Collapse in={openItems.includes(item.text)} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                   {item.children.map((child) => (
@@ -152,24 +176,37 @@ export default function Sidebar({ currentPath }: SidebarProps) {
 
       <Divider />
 
+      {/* Collapse Toggle */}
+      {onToggleCollapse && (
+        <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', p: 1 }}>
+          <IconButton onClick={onToggleCollapse}>
+            {collapsed ? <ChevronRight /> : <ChevronLeft />}
+          </IconButton>
+        </Box>
+      )}
+
       {session && (
         <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', mr: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', mr: collapsed ? 0 : 2 }}>
               {session.user.name?.charAt(0)}
             </Avatar>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="body2" fontWeight="medium">
-                {session.user.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {session.user.email}
-              </Typography>
-            </Box>
+            {!collapsed && (
+              <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                <Typography variant="body2" fontWeight="medium" noWrap>
+                  {session.user.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block">
+                  {session.user.email}
+                </Typography>
+              </Box>
+            )}
           </Box>
-          <ListItemButton onClick={() => signOut()} sx={{ mt: 1 }}>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
+          {!collapsed && (
+            <ListItemButton onClick={() => signOut()} sx={{ mt: 1 }}>
+              <ListItemText primary="Logout" />
+            </ListItemButton>
+          )}
         </Box>
       )}
     </Box>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
     Box,
     Grid,
@@ -17,7 +17,6 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    LinearProgress,
     CircularProgress,
     Alert
 } from '@mui/material'
@@ -37,9 +36,7 @@ import {
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import { useQuery } from '@tanstack/react-query'
 import { getMisAnalyticsAction } from '@/actions/mis-actions'
-import { embedDashboard } from "@superset-ui/embedded-sdk";
-import { getAllAvailableReports, getSupersetGuestToken } from '@/actions/superset-actions';
-import { useEffect, useRef } from 'react';
+import { getReportDataAction, ReportData } from '@/actions/report-actions'
 
 ChartJS.register(
     CategoryScale,
@@ -54,68 +51,52 @@ ChartJS.register(
     Filler
 )
 
+const REPORT_CATEGORIES = [
+    { id: 'registration', title: 'Registration & Login', icon: 'fa-user-plus', color: 'text-blue-500', bg: 'bg-blue-50' },
+    { id: 'qr-scans', title: 'QR Scans', icon: 'fa-qrcode', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'redemptions', title: 'Redemptions', icon: 'fa-exchange-alt', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'referrals', title: 'Referrals', icon: 'fa-share-alt', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'gamification', title: 'Gamification', icon: 'fa-gamepad', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'compliance', title: 'Compliance', icon: 'fa-file-invoice-dollar', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'stakeholder', title: 'Stakeholder-wise', icon: 'fa-users-cog', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'sales', title: 'Sales & Marketing', icon: 'fa-chart-line', color: 'text-gray-500', bg: 'hover:bg-gray-100' },
+    { id: 'bank', title: 'Bank/UPI', icon: 'fa-university', color: 'text-gray-500', bg: 'hover:bg-gray-100' }
+];
+
 export default function MisClient() {
     const [activeTab, setActiveTab] = useState(0)
-    const [availableReports, setAvailableReports] = useState<any[]>([]);
-    const [activeReport, setActiveReport] = useState<any>(null);
-    const dashboardRef = useRef<HTMLDivElement>(null);
+    const [activeReportCategory, setActiveReportCategory] = useState<string | null>(null);
+    const [reportData, setReportData] = useState<ReportData>({ columns: [], rows: [] });
+    const [isReportLoading, setIsReportLoading] = useState(false);
 
-    // Fetch reports on mount
+    // Fetch reports when category changes
     useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const reports = await getAllAvailableReports();
-                setAvailableReports(reports || []);
-            } catch (err) {
-                console.error("Failed to fetch reports", err);
-            }
-        };
-        fetchReports();
-    }, []);
-
-    // Embed dashboard when activeReport changes
-    useEffect(() => {
-        if (activeReport && dashboardRef.current) {
-            const mountDashboard = async () => {
+        if (activeReportCategory) {
+            const fetchReport = async () => {
+                setIsReportLoading(true);
                 try {
-                    const { token, supsersetDomain } = await getSupersetGuestToken(activeReport.sid.toString());
-                    await embedDashboard({
-                        id: activeReport.sid,
-                        supersetDomain: supsersetDomain,
-                        mountPoint: dashboardRef.current!,
-                        fetchGuestToken: () => Promise.resolve(token),
-                        dashboardUiConfig: {
-                            //hideTitle: true,
-                            //hideChartControls: false,
-                            //hideTab: true,
-                            filters: {
-                                expanded: true,
-                            },
-                            urlParams: { standalone: 3 }
-                        },
-                    });
-                } catch (error) {
-                    console.error("Error embedding dashboard:", error);
+                    const data = await getReportDataAction(activeReportCategory);
+                    setReportData(data);
+                } catch (err) {
+                    console.error("Failed to fetch report", err);
+                } finally {
+                    setIsReportLoading(false);
                 }
             };
-            mountDashboard();
-            return () => {
-                if (dashboardRef.current) dashboardRef.current.innerHTML = "";
-            };
+            fetchReport();
+        } else {
+            setReportData({ columns: [], rows: [] });
         }
-    }, [activeReport]);
+    }, [activeReportCategory]);
 
-    // Fetch Data
+
+    // Fetch Analytics Data
     const { data: analyticsData, isLoading, error } = useQuery({
         queryKey: ['mis-analytics'],
         queryFn: () => getMisAnalyticsAction()
     })
 
-    // Fallback / Mock Data helpers if real data structure is partial
-    // For the sake of this migration, I'll largely reuse the static data logic 
-    // but populate the specific fields we standardized in the Action.
-
-    // Executive: Points Alloted
+    // ... (Chart Data Preparation) ...
     const pointsAllotedData = {
         labels: analyticsData?.executive?.pointsTrend?.labels || [],
         datasets: [{
@@ -128,7 +109,6 @@ export default function MisClient() {
         }]
     }
 
-    // Executive: Member Growth
     const memberGrowthData = {
         labels: analyticsData?.executive?.memberGrowth?.labels || [],
         datasets: [{
@@ -139,7 +119,6 @@ export default function MisClient() {
         }]
     }
 
-    // Performance: Transaction Volume (Using Data from Action or default)
     const transactionVolumeData = {
         labels: analyticsData?.performance?.txnVolume?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
@@ -152,7 +131,6 @@ export default function MisClient() {
         }]
     }
 
-    // Performance: Category Perf (Bar)
     const categoryPerfData = {
         labels: analyticsData?.performance?.categoryPerf?.labels || ['Wires', 'Switches', 'Lights', 'Fans', 'MCBs'],
         datasets: [{
@@ -192,6 +170,7 @@ export default function MisClient() {
             borderRadius: 4
         }]
     }
+
 
     if (isLoading) {
         return <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
@@ -304,7 +283,7 @@ export default function MisClient() {
                             </Grid>
                         </Grid>
 
-                        {/* LISTS (Static for now, can be hydrated later) */}
+                        {/* LISTS */}
                         <Grid container spacing={3}>
                             {/* Top Members */}
                             <Grid size={{ xs: 12, lg: 4 }}>
@@ -380,7 +359,6 @@ export default function MisClient() {
                 )}
             </div>
 
-            {/* --- TAB 1: PERFORMANCE METRICS --- */}
             <div role="tabpanel" hidden={activeTab !== 1}>
                 {activeTab === 1 && (
                     <Box>
@@ -466,24 +444,15 @@ export default function MisClient() {
                 )}
             </div>
 
-            {/* --- TAB 2: MEMBER ANALYTICS --- */}
             <div role="tabpanel" hidden={activeTab !== 2}>
                 {activeTab === 2 && (
                     <Box>
-                        {/* Member Segmentation & Lifecycle */}
                         <Grid container spacing={3} mb={3}>
                             <Grid size={{ xs: 12, lg: 4 }}>
                                 <div className="widget-card p-6 w-full h-full">
                                     <Typography variant="h6" fontWeight="600" mb={3}>Member Segmentation</Typography>
                                     <Box height={250} display="flex" justifyContent="center">
-                                        <Doughnut data={{
-                                            labels: analyticsData?.memberAnalytics?.segmentation?.labels || [],
-                                            datasets: [{
-                                                data: analyticsData?.memberAnalytics?.segmentation?.data || [],
-                                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
-                                                hoverOffset: 4
-                                            }]
-                                        }} options={{ maintainAspectRatio: false }} />
+                                        <Doughnut data={memberSegData} options={{ maintainAspectRatio: false }} />
                                     </Box>
                                 </div>
                             </Grid>
@@ -579,7 +548,6 @@ export default function MisClient() {
                 )}
             </div>
 
-            {/* --- TAB 3: CAMPAIGN ANALYTICS --- */}
             <div role="tabpanel" hidden={activeTab !== 3}>
                 {activeTab === 3 && (
                     <Box>
@@ -613,10 +581,7 @@ export default function MisClient() {
                                 <div className="widget-card p-6 w-full h-full">
                                     <Typography variant="h6" fontWeight="600" mb={3}>Campaign Performance Trend</Typography>
                                     <Box height={250}>
-                                        <Line data={{
-                                            labels: analyticsData?.campaignAnalytics?.performanceTrend?.labels || [],
-                                            datasets: analyticsData?.campaignAnalytics?.performanceTrend?.datasets || []
-                                        }} options={{ maintainAspectRatio: false }} />
+                                        <Line data={campaignTrendData} options={{ maintainAspectRatio: false }} />
                                     </Box>
                                 </div>
                             </Grid>
@@ -624,15 +589,7 @@ export default function MisClient() {
                                 <div className="widget-card p-6 w-full h-full">
                                     <Typography variant="h6" fontWeight="600" mb={3}>Channel Effectiveness</Typography>
                                     <Box height={250}>
-                                        <Bar data={{
-                                            labels: analyticsData?.campaignAnalytics?.channelEffectiveness?.labels || [],
-                                            datasets: [{
-                                                label: 'Conversion Rate %',
-                                                data: analyticsData?.campaignAnalytics?.channelEffectiveness?.data || [],
-                                                backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
-                                                borderRadius: 4
-                                            }]
-                                        }} options={{ maintainAspectRatio: false }} />
+                                        <Bar data={channelEffectData} options={{ maintainAspectRatio: false }} />
                                     </Box>
                                 </div>
                             </Grid>
@@ -681,6 +638,7 @@ export default function MisClient() {
                 )}
             </div>
 
+
             {/* --- TAB 4: REPORTS --- */}
             <div role="tabpanel" hidden={activeTab !== 4}>
                 {activeTab === 4 && (
@@ -689,29 +647,23 @@ export default function MisClient() {
                         <div className="w-full lg:w-72 flex-shrink-0">
                             <div className="widget-card rounded-xl shadow p-4 bg-white h-full">
                                 <Typography variant="h6" className="text-lg font-semibold text-gray-800 mb-4 px-2">
-                                    Available Reports
+                                    Report Categories
                                 </Typography>
                                 <nav className="space-y-1">
-                                    {availableReports.map((report: any) => (
+                                    {REPORT_CATEGORIES.map((cat) => (
                                         <button
-                                            key={report.id}
-                                            onClick={() => setActiveReport(report)}
-                                            className={`w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${activeReport?.id === report.id
+                                            key={cat.id}
+                                            onClick={() => setActiveReportCategory(cat.id)}
+                                            className={`w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${activeReportCategory === cat.id
                                                     ? 'bg-blue-50 text-blue-700'
                                                     : 'text-gray-700 hover:bg-gray-100'
                                                 }`}
                                         >
-                                            <i className={`fas ${activeReport?.id === report.id ? 'fa-chart-pie' : 'fa-file-alt'
-                                                } mr-3 ${activeReport?.id === report.id ? 'text-blue-500' : 'text-gray-400'
+                                            <i className={`fas ${cat.icon} mr-3 ${activeReportCategory === cat.id ? 'text-blue-500' : 'text-gray-400'
                                                 }`}></i>
-                                            <span className="truncate text-left">{report.title}</span>
+                                            <span className="truncate text-left">{cat.title}</span>
                                         </button>
                                     ))}
-                                    {availableReports.length === 0 && (
-                                        <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                            No reports found
-                                        </div>
-                                    )}
                                 </nav>
                             </div>
                         </div>
@@ -722,41 +674,71 @@ export default function MisClient() {
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 border-b border-gray-100 pb-4">
                                     <div>
                                         <h3 className="text-xl font-semibold text-gray-800">
-                                            {activeReport ? activeReport.title : 'Select a Report'}
+                                            {activeReportCategory ? REPORT_CATEGORIES.find(c => c.id === activeReportCategory)?.title : 'Select a Report'}
                                         </h3>
                                         <p className="text-sm text-gray-500 mt-1">
-                                            {activeReport ? 'View and analyze detailed insights' : 'Choose a report from the sidebar to get started'}
+                                            {activeReportCategory ? 'Detailed analysis and data records' : 'Choose a category from the sidebar'}
                                         </p>
                                     </div>
-                                    {/* Action Buttons (Visual only for now as Superset handles its own exports mostly, but keeping for UI match) */}
-                                    {activeReport && (
+                                    {activeReportCategory && (
                                         <div className="mt-4 md:mt-0 flex space-x-2">
                                             <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition shadow-sm">
-                                                <i className="fas fa-sync-alt mr-2"></i> Refresh
+                                                <i className="fas fa-filter mr-2"></i> Filters
                                             </button>
                                             <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
-                                                <i className="fas fa-download mr-2"></i> Export
+                                                <i className="fas fa-download mr-2"></i> Export CSV
                                             </button>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Superset Container */}
-                                <div className="flex-1 relative bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                                    <style dangerouslySetInnerHTML={{
-                                        __html: `
-                                        .superset-container iframe {
-                                            width: 100% !important;
-                                            height: 100% !important;
-                                            border: none !important;
-                                            display: block !important;
-                                        }
-                                    `}} />
-                                    {activeReport ? (
-                                        <div
-                                            ref={dashboardRef}
-                                            className="superset-container w-full h-full min-h-[600px]"
-                                        />
+                                {/* Report Data Table */}
+                                <div className="flex-1 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden relative">
+                                    {activeReportCategory ? (
+                                        isReportLoading ? (
+                                            <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                                                <CircularProgress size={40} />
+                                            </Box>
+                                        ) : reportData.rows.length > 0 ? (
+                                            <div className="overflow-x-auto h-full">
+                                                <Table stickyHeader size="small">
+                                                    <TableHead>
+                                                        <TableRow>
+                                                            {reportData.columns.map((col) => (
+                                                                <TableCell key={col.key} sx={{ fontWeight: 600, backgroundColor: '#f9fafb' }}>
+                                                                    {col.label}
+                                                                </TableCell>
+                                                            ))}
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {reportData.rows.map((row, idx) => (
+                                                            <TableRow key={idx} hover>
+                                                                {reportData.columns.map((col) => (
+                                                                    <TableCell key={`${idx}-${col.key}`}>
+                                                                        {col.type === 'date' && row[col.key] ? new Date(row[col.key]).toLocaleDateString() :
+                                                                            col.type === 'currency' ? `₹${row[col.key]}` :
+                                                                                col.type === 'status' ? (
+                                                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row[col.key] === 'Active' || row[col.key] === 'Success' || row[col.key] === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                                                            row[col.key] === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                                                                'bg-gray-100 text-gray-800'
+                                                                                        }`}>
+                                                                                        {row[col.key]}
+                                                                                    </span>
+                                                                                ) : row[col.key]}
+                                                                    </TableCell>
+                                                                ))}
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                                                <i className="fas fa-inbox text-4xl mb-2 text-gray-300"></i>
+                                                <Typography variant="body1">No records found</Typography>
+                                            </div>
+                                        )
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
                                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -764,7 +746,7 @@ export default function MisClient() {
                                             </div>
                                             <Typography variant="body1">No Report Selected</Typography>
                                             <Typography variant="body2" className="mt-2 text-center max-w-xs">
-                                                Select a report from the list on the left to view the dashboard here.
+                                                Select a report from the list on the left to view data.
                                             </Typography>
                                         </div>
                                     )}

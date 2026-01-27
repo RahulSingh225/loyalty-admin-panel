@@ -19,8 +19,8 @@ class QrService {
                 return { success: false, message: 'SKU (Variant) not present', status: 404 };
             }
             const brokerObject = new RabbitMQConnector();
-            await brokerObject.publish('qrExchange', 'relaxwell', { payload });
-            }
+            await brokerObject.publish('qrExchange.relaxwell', { payload });
+
 
             return { success: true, message: 'Qr Generation In progress please check after some time' };
         } catch (error: any) {
@@ -31,7 +31,8 @@ class QrService {
                 status: error.responseCode || 500
             };
         }
-    
+    }
+
 
     async getQrHistory(page: number = 0, limit: number = 10, filters?: { searchTerm?: string, status?: string }) {
         try {

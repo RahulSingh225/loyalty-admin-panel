@@ -83,7 +83,7 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 export default function ConfigurationClient() {
-    const [activeTab, setActiveTab] = useState(0);
+    const [activeTab, setActiveTab] = useState(1);
     const [userType, setUserType] = useState('');
 
     const { data: configData } = useQuery({
@@ -117,12 +117,12 @@ export default function ConfigurationClient() {
         <Box>
             {/* Tabs */}
             <div className="tabs mb-6">
-                <button
+                {/* <button
                     className={`tab ${activeTab === 0 ? 'active' : ''}`}
                     onClick={() => setActiveTab(0)}
                 >
                     Masters & Schemes
-                </button>
+                </button> */}
                 <button
                     className={`tab ${activeTab === 1 ? 'active' : ''}`}
                     onClick={() => setActiveTab(1)}
@@ -135,12 +135,12 @@ export default function ConfigurationClient() {
                 >
                     Referral
                 </button>
-                <button
+                {/* <button
                     className={`tab ${activeTab === 3 ? 'active' : ''}`}
                     onClick={() => setActiveTab(3)}
                 >
                     Communication
-                </button>
+                </button> */}
             </div>
 
             {/* Masters & Schemes Tab */}
