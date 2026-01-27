@@ -11,7 +11,7 @@ declare module "next-auth" {
   }
 
   interface User {
-    id: string
+    id?: string
     role: string
     department: string
   }
@@ -26,7 +26,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // 这里应该连接到您的实际数据库
         if (credentials?.username === "admin" && credentials?.password === "admin123") {
           return {
             id: "1",
@@ -36,8 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             department: "IT"
           }
         }
-        
-        // 模拟其他用户
+
         if (credentials?.username === "manager" && credentials?.password === "manager123") {
           return {
             id: "2",
@@ -47,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             department: "Sales"
           }
         }
-        
+
         return null
       }
     })

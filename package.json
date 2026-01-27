@@ -11,7 +11,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db-sync": "npx tsx src/db/sync-database.ts"
+    "db-sync": "npx tsx src/db/sync-database.ts",
+    "docker:build": "docker build -t vikasshah24/sturlite-admin:uat .",
+    "docker:push": "docker push vikasshah24/sturlite-admin:uat",
+    "docker:run": "docker run -d -p 3000:3000 --name sturlite-admin vikasshah24/sturlite-admin:uat"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.699.0",

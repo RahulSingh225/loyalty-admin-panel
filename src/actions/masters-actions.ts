@@ -181,20 +181,20 @@ export async function getMastersDataAction() {
         const redemptionChannelsList = redemptionChannelsRows.map(r => ({ id: Number(r.id), name: r.name, isActive: Boolean(r.isActive) }));
 
         // 5. Fetch SKU Performance (Aggregate scans from all transaction tables)
+        const q1 = db.select({ sku: retailerTransactions.sku }).from(retailerTransactions);
+        const q2 = db.select({ sku: electricianTransactions.sku }).from(electricianTransactions);
+        const q3 = db.select({ sku: counterSalesTransactions.sku }).from(counterSalesTransactions);
+
+        const unionSq = q1.unionAll(q2).unionAll(q3).as('t');
+
         const performanceData = await db
             .select({
-                skuCode: sqlTag.raw('sku') as any,
-                count: sqlTag.raw('count(*)') as any
+                skuCode: unionSq.sku,
+                count: sqlTag`count(*)`.mapWith(Number)
             })
-            .from(sqlTag.raw(`(
-                SELECT sku FROM retailer_transactions
-                UNION ALL
-                SELECT sku FROM electrician_transactions
-                UNION ALL
-                SELECT sku FROM counter_sales_transactions
-            ) as t`))
-            .groupBy(sqlTag.raw('sku'))
-            .orderBy(sqlTag.raw('count(*) DESC'))
+            .from(unionSq)
+            .groupBy(unionSq.sku)
+            .orderBy(desc(sqlTag`count(*)`))
             .limit(5);
 
         // Join with skuEntity to get names (assuming t.sku matches skuEntity.code)
@@ -326,25 +326,26 @@ export async function upsertSkuPointConfigAction(data: {
                 .set({
                     clientId: data.clientId,
                     userTypeId: data.userTypeId,
-
                     skuVariantId: data.skuVariantId,
                     pointsPerUnit: data.pointsPerUnit.toString(),
                     maxScansPerDay: data.maxScansPerDay,
-                    validFrom: data.validFrom ? new Date(data.validFrom).toUTCString() : null,
-                    validTo: data.validTo ? new Date(data.validTo).toUTCString() : null,
+                    validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+                    validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
                     isActive: data.isActive,
                 })
                 .where(eq(skuPointConfig.id, data.id));
         } else {
+            if (!data.userTypeId || !data.skuVariantId) {
+                return { success: false, error: "User Type and SKU Variant are required." };
+            }
             await db.insert(skuPointConfig).values({
                 clientId: data.clientId,
                 userTypeId: data.userTypeId,
-                skuEntityId: data.skuEntityId,
                 skuVariantId: data.skuVariantId,
                 pointsPerUnit: data.pointsPerUnit.toString(),
                 maxScansPerDay: data.maxScansPerDay,
-                validFrom: data.validFrom ? new Date(data.validFrom) : null,
-                validTo: data.validTo ? new Date(data.validTo) : null,
+                validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+                validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
                 isActive: data.isActive,
             });
         }

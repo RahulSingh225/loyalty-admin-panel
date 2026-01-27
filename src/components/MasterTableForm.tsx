@@ -102,7 +102,7 @@ export function MasterTableForm({ title, tableSchema, data, onChange, masterData
                   // Render a Select dropdown for foreign keys
                   const options = masterData[fk.refTable] || [];
                   return (
-                    <Grid item xs={12} sm={6} md={4} key={column.name}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={column.name}>
                       <FormControl fullWidth required={isRequired} size="small">
                         <InputLabel>{column.name}</InputLabel>
                         <Select
@@ -124,7 +124,7 @@ export function MasterTableForm({ title, tableSchema, data, onChange, masterData
 
                 // Render other field types
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={column.name}>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={column.name}>
                     {fieldType === 'boolean' ? (
                       <FormControlLabel
                         control={
@@ -151,7 +151,7 @@ export function MasterTableForm({ title, tableSchema, data, onChange, masterData
                   </Grid>
                 );
               })}
-              <Grid item>
+              <Grid>
                 <IconButton onClick={() => deleteRow(rowIndex)} color="error">
                   <DeleteIcon />
                 </IconButton>

@@ -6,8 +6,8 @@ export default async function MembersPage() {
   const queryClient = new QueryClient()
 
   await queryClient.prefetchQuery({
-    queryKey: ['members-data'],
-    queryFn: getMembersDataAction,
+    queryKey: ['members-data', '', 'All Status', 'All Regions'],
+    queryFn: () => getMembersDataAction({ searchQuery: '', kycStatus: 'All Status', region: 'All Regions' }),
   })
 
   return (

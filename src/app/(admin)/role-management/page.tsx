@@ -6,8 +6,8 @@ export default async function RoleManagementPage() {
   const queryClient = new QueryClient()
 
   await queryClient.prefetchQuery({
-    queryKey: ['role-data'],
-    queryFn: getRoleDataAction,
+    queryKey: ['role-data', '', '', ''],
+    queryFn: () => getRoleDataAction(),
   })
 
   return (

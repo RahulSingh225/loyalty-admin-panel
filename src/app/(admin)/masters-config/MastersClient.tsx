@@ -362,15 +362,15 @@ export default function MastersClient() {
                                                     setStakeholderMaxDailyScans(s.maxDailyScans || 50);
                                                     setStakeholderKycLevel(s.requiredKycLevel || 'Basic');
                                                     const channels = s.allowedRedemptionChannels || [];
-                                                    setStakeholderChannels({ upi: channels.includes(1), bank: channels.includes(2), voucher: channels.includes(3) });
+                                                    setStakeholderChannelIds(channels.map((c: any) => Number(c)));
                                                 }
                                             }
                                         }}>Cancel</Button>
                                         <Button variant="contained" color="primary" onClick={() => {
                                             if (!selectedStakeholderId) return;
                                             setConfirmOpen(true);
-                                        }} disabled={stakeholderMutation.isLoading}>
-                                            {stakeholderMutation.isLoading ? 'Saving...' : 'Save Configuration'}
+                                        }} disabled={stakeholderMutation.isPending}>
+                                            {stakeholderMutation.isPending ? 'Saving...' : 'Save Configuration'}
                                         </Button>
                                         {stakeholderSaveStatus === 'success' && <Typography variant="body2" color="success.main" sx={{ ml: 2 }}>Saved</Typography>}
                                         {stakeholderSaveStatus === 'error' && <Typography variant="body2" color="error.main" sx={{ ml: 2 }}>Save failed</Typography>}
@@ -395,9 +395,9 @@ export default function MastersClient() {
                                                     });
                                                     setConfirmOpen(false);
                                                 }}
-                                                disabled={stakeholderMutation.isLoading}
+                                                disabled={stakeholderMutation.isPending}
                                             >
-                                                {stakeholderMutation.isLoading ? 'Saving...' : 'Confirm'}
+                                                {stakeholderMutation.isPending ? 'Saving...' : 'Confirm'}
                                             </Button>
                                         </DialogActions>
                                     </Dialog>
@@ -520,16 +520,15 @@ export default function MastersClient() {
                                             skuConfigMutation.mutate({
                                                 clientId: 1,
                                                 userTypeId: skuStakeholder === 'All' ? undefined : Number(skuStakeholder),
-                                                skuEntityId: undefined,
-                                                skuVariantId: undefined,
+                                                entityId: Number(selectedEntityId),
                                                 pointsPerUnit: pointsPerScan,
                                                 maxScansPerDay: maxScansPerDay,
                                                 validFrom: validFrom || undefined,
                                                 validTo: validTo || undefined,
                                                 isActive: isActive
                                             });
-                                        }} disabled={skuConfigMutation.isLoading}>
-                                            {skuConfigMutation.isLoading ? 'Saving...' : 'Save Configuration'}
+                                        }} disabled={skuConfigMutation.isPending}>
+                                            {skuConfigMutation.isPending ? 'Saving...' : 'Save Configuration'}
                                         </Button>
                                         {saveStatus === 'success' && <Typography variant="body2" color="success" sx={{ ml: 2 }}>Saved</Typography>}
                                         {saveStatus === 'error' && <Typography variant="body2" color="error" sx={{ ml: 2 }}>Save failed</Typography>}
@@ -860,8 +859,8 @@ export default function MastersClient() {
                                                 validFrom: pmValidFrom || undefined,
                                                 validTo: pmValidTo || undefined,
                                             });
-                                        }} disabled={pointsRuleMutation.isLoading}>
-                                            {pointsRuleMutation.isLoading ? 'Saving...' : 'Save Rule'}
+                                        }} disabled={pointsRuleMutation.isPending}>
+                                            {pointsRuleMutation.isPending ? 'Saving...' : 'Save Rule'}
                                         </Button>
                                         {pmSaveStatus === 'success' && <Typography variant="body2" color="success" sx={{ ml: 2 }}>Saved</Typography>}
                                         {pmSaveStatus === 'error' && <Typography variant="body2" color="error" sx={{ ml: 2 }}>Save failed</Typography>}
