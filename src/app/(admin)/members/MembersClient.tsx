@@ -27,7 +27,9 @@ import {
     CircularProgress,
     Divider,
     Chip,
-    Stack
+    Stack,
+    Snackbar,
+    Alert
 } from '@mui/material';
 import {
     Search,
@@ -58,16 +60,19 @@ import {
     Business,
     AssignmentInd
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
-import { getMembersDataAction, getMemberDetailsAction } from '@/actions/member-actions';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getMembersDataAction, getMemberDetailsAction, getMemberKycDocumentsAction, updateKycDocumentStatusAction, getApprovalStatusesAction, updateMemberApprovalStatusAction, getMemberHierarchyAction, getMembersListAction } from '@/actions/member-actions';
 
 export default function MembersClient() {
+    const queryClient = useQueryClient();
     const [levelTab, setLevelTab] = useState(0);
     const [entityTab, setEntityTab] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [kycStatusFilter, setKycStatusFilter] = useState('All Status');
     const [regionFilter, setRegionFilter] = useState('All Regions');
+    const [page, setPage] = useState(1);
+    const limit = 10;
 
     const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -75,6 +80,11 @@ export default function MembersClient() {
 
     const [kycModalOpen, setKycModalOpen] = useState(false);
     const [selectedKycMember, setSelectedKycMember] = useState<any>(null);
+    const [viewDocOpen, setViewDocOpen] = useState(false);
+    const [viewDocUrl, setViewDocUrl] = useState('');
+    const [viewDocType, setViewDocType] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -83,35 +93,59 @@ export default function MembersClient() {
         return () => clearTimeout(handler);
     }, [searchQuery]);
 
-    const { data } = useQuery({
-        queryKey: ['members-data', debouncedQuery, kycStatusFilter, regionFilter],
-        queryFn: () => getMembersDataAction({
-            searchQuery: debouncedQuery,
-            kycStatus: kycStatusFilter,
-            region: regionFilter
-        }),
+    const { data: hierarchyData } = useQuery({
+        queryKey: ['member-hierarchy'],
+        queryFn: getMemberHierarchyAction,
         staleTime: 60 * 1000,
     });
-    console.log(data);
+
+    const currentLevel = hierarchyData?.levels[levelTab];
+    // Ensure entityTab is valid for currentLevel
+    const activeEntityTab = currentLevel && entityTab >= currentLevel.entities.length ? 0 : entityTab;
+    const currentEntity = currentLevel?.entities[activeEntityTab];
+
+    const { data: membersListData, isLoading: isMembersLoading } = useQuery({
+        queryKey: ['members-list', currentEntity?.id, page, searchQuery, kycStatusFilter, regionFilter],
+        queryFn: () => currentEntity ? getMembersListAction({
+            searchQuery: debouncedQuery,
+            kycStatus: kycStatusFilter,
+            region: regionFilter,
+            page,
+            limit,
+            roleId: currentEntity.id
+        }) : { list: [], stats: { total: 0, totalTrend: '', kycPending: 0, kycPendingTrend: '', kycApproved: 0, kycApprovedRate: '', activeToday: 0, activeTodayTrend: '' } },
+        enabled: !!currentEntity,
+    });
+
+    const stats = membersListData?.stats || { total: 0, totalTrend: '', kycPending: 0, kycPendingTrend: '', kycApproved: 0, kycApprovedRate: '', activeToday: 0, activeTodayTrend: '' };
+    const members = membersListData?.list || [];
+
+    // console.log(hierarchyData); // Debug if needed
     const { data: memberDetails, isLoading: isLoadingDetails } = useQuery({
         queryKey: ['member-details', selectedMember?.type, selectedMember?.id],
         queryFn: () => selectedMember ? getMemberDetailsAction(selectedMember.type, selectedMember.id) : null,
         enabled: !!selectedMember,
     });
 
-    if (!data || !data.levels || data.levels.length === 0) return null;
+    const { data: kycDocuments, isLoading: isLoadingKycDocs } = useQuery({
+        queryKey: ['member-kyc-docs', selectedKycMember?.dbId],
+        queryFn: () => selectedKycMember ? getMemberKycDocumentsAction(selectedKycMember.dbId) : null,
+        enabled: !!selectedKycMember,
+    });
 
-    const currentLevel = data.levels[levelTab];
-    // Ensure entityTab is valid for currentLevel
-    const activeEntityTab = entityTab >= currentLevel.entities.length ? 0 : entityTab;
-    const currentEntity = currentLevel.entities[activeEntityTab];
+    const { data: blockStatuses } = useQuery({
+        queryKey: ['approval-statuses'],
+        queryFn: getApprovalStatusesAction
+    });
 
-    const stats = currentEntity ? currentEntity.members.stats : null;
-    const members = currentEntity ? currentEntity.members.list : [];
+    if (!hierarchyData || !hierarchyData.levels || hierarchyData.levels.length === 0) return null;
+
+    // Ensure entityTab is valid for currentLevel (re-calculated above but here for initial render checks if needed, but activeEntityTab covers it)
 
     const handleLevelChange = (index: number) => {
         setLevelTab(index);
         setEntityTab(0);
+        setPage(1); // Reset page on level change
     };
 
     const handleMenuOpen = (id: string, event: React.MouseEvent<HTMLElement>) => {
@@ -132,6 +166,37 @@ export default function MembersClient() {
         setSelectedMember({ type: currentEntity.name, id: member.dbId, member });
         setDetailsModalOpen(true);
         handleMenuClose(`more-${member.id}`);
+    };
+
+    const handleViewDocument = (url: string, type: string) => {
+        console.log(url)
+        setViewDocUrl(url);
+        setViewDocType(type);
+        setViewDocOpen(true);
+    };
+
+    const handleUpdateDocStatus = async (docId: number, status: 'verified' | 'rejected') => {
+        try {
+            await updateKycDocumentStatusAction(docId, status);
+            // Refresh data
+            queryClient.invalidateQueries({ queryKey: ['member-kyc-docs'] });
+        } catch (error) {
+            console.error("Failed to update document status:", error);
+        }
+    };
+
+    const handleUpdateBlockStatus = async (userId: number, statusId: number, memberId: string) => {
+        try {
+            await updateMemberApprovalStatusAction(userId, statusId);
+            queryClient.invalidateQueries({ queryKey: ['members-data'] });
+            handleMenuClose(`block-${memberId}`);
+            setSnackbarMessage('Member status updated successfully');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error("Failed to update block status:", error);
+            setSnackbarMessage('Failed to update status');
+            setSnackbarOpen(true);
+        }
     };
 
     const getKycBadge = (status: string) => {
@@ -158,7 +223,7 @@ export default function MembersClient() {
         <Box>
             {/* Main Tabs (Levels) */}
             <div className="tabs mb-4 px-1">
-                {data.levels.map((level: any, index: number) => (
+                {hierarchyData.levels.map((level: any, index: number) => (
                     <button
                         key={level.id}
                         className={`tab ${levelTab === index ? 'active' : ''}`}
@@ -175,7 +240,7 @@ export default function MembersClient() {
                 {currentLevel.entities.map((entity: any, index: number) => (
                     <button
                         key={entity.id}
-                        onClick={() => setEntityTab(index)}
+                        onClick={() => { setEntityTab(index); setPage(1); }}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${activeEntityTab === index
                             ? 'bg-blue-600 text-white shadow-md'
                             : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
@@ -409,14 +474,7 @@ export default function MembersClient() {
                                                         onClose={() => handleMenuClose(`kyc-${member.id}`)}
                                                         PaperProps={{ className: 'action-dropdown-menu' }}
                                                     >
-                                                        <MenuItem onClick={() => handleMenuClose(`kyc-${member.id}`)} sx={{ color: '#059669' }}>
-                                                            <ListItemIcon><CheckCircle fontSize="small" sx={{ color: '#059669' }} /></ListItemIcon>
-                                                            <ListItemText primary="Approve KYC" />
-                                                        </MenuItem>
-                                                        <MenuItem onClick={() => handleMenuClose(`kyc-${member.id}`)} sx={{ color: '#dc2626' }}>
-                                                            <ListItemIcon><Cancel fontSize="small" sx={{ color: '#dc2626' }} /></ListItemIcon>
-                                                            <ListItemText primary="Reject KYC" />
-                                                        </MenuItem>
+
                                                         <MenuItem onClick={() => handleViewKyc(member)}>
                                                             <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
                                                             <ListItemText primary="View Documents" />
@@ -441,18 +499,27 @@ export default function MembersClient() {
                                                         onClose={() => handleMenuClose(`block-${member.id}`)}
                                                         PaperProps={{ className: 'action-dropdown-menu' }}
                                                     >
-                                                        <MenuItem onClick={() => handleMenuClose(`block-${member.id}`)} sx={{ color: '#d97706' }}>
-                                                            <ListItemIcon><QrCode fontSize="small" sx={{ color: '#d97706' }} /></ListItemIcon>
-                                                            <ListItemText primary="Block Scan" />
-                                                        </MenuItem>
-                                                        <MenuItem onClick={() => handleMenuClose(`block-${member.id}`)} sx={{ color: '#d97706' }}>
-                                                            <ListItemIcon><CardGiftcard fontSize="small" sx={{ color: '#d97706' }} /></ListItemIcon>
-                                                            <ListItemText primary="Block Redemption" />
-                                                        </MenuItem>
-                                                        <MenuItem onClick={() => handleMenuClose(`block-${member.id}`)} sx={{ color: '#dc2626' }}>
-                                                            <ListItemIcon><Lock fontSize="small" sx={{ color: '#dc2626' }} /></ListItemIcon>
-                                                            <ListItemText primary="Block Account" />
-                                                        </MenuItem>
+                                                        {blockStatuses?.map((status: any) => {
+                                                            const ACTIONABLE_STATUSES = ['DELETE', 'BLOCKED', 'REDEMPTION_BLOCKED', 'SCAN_BLOCKED', 'INACTIVE'];
+                                                            const isActionable = ACTIONABLE_STATUSES.includes(status.name?.toUpperCase());
+
+                                                            return (
+                                                                <MenuItem
+                                                                    key={status.id}
+                                                                    onClick={() => isActionable && handleUpdateBlockStatus(member.dbId, status.id, member.id)}
+                                                                    disabled={!isActionable}
+                                                                    sx={{ color: isActionable ? '#d97706' : 'text.disabled' }}
+                                                                >
+                                                                    <ListItemIcon><Lock fontSize="small" sx={{ color: isActionable ? '#d97706' : 'text.disabled' }} /></ListItemIcon>
+                                                                    <ListItemText primary={status.name} />
+                                                                </MenuItem>
+                                                            );
+                                                        })}
+                                                        {(!blockStatuses || blockStatuses.length === 0) && (
+                                                            <MenuItem disabled>
+                                                                <ListItemText primary="No actions available" />
+                                                            </MenuItem>
+                                                        )}
                                                     </Menu>
 
                                                     {/* More Actions Dropdown */}
@@ -496,14 +563,27 @@ export default function MembersClient() {
                         {/* Pagination */}
                         <Box display="flex" justifyContent="space-between" alignItems="center" mt={4}>
                             <Typography variant="body2" color="text.secondary">
-                                Showing 1 to {members.length} of {stats.total.toLocaleString()} {currentEntity.name.toLowerCase()}
+                                Page {page} (Total: {stats.total.toLocaleString()})
                             </Typography>
                             <Box display="flex" gap={1}>
-                                <Button variant="outlined" size="small" sx={{ textTransform: 'none', minWidth: 80 }}>Previous</Button>
-                                <Button variant="contained" size="small" sx={{ textTransform: 'none', minWidth: 32, p: 0, bgcolor: '#2563eb' }}>1</Button>
-                                <Button variant="outlined" size="small" sx={{ textTransform: 'none', minWidth: 32, p: 0 }}>2</Button>
-                                <Button variant="outlined" size="small" sx={{ textTransform: 'none', minWidth: 32, p: 0 }}>3</Button>
-                                <Button variant="outlined" size="small" sx={{ textTransform: 'none', minWidth: 80 }}>Next</Button>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ textTransform: 'none', minWidth: 80 }}
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ textTransform: 'none', minWidth: 80 }}
+                                    onClick={() => setPage(p => p + 1)}
+                                    disabled={members.length < limit}
+                                >
+                                    Next
+                                </Button>
                             </Box>
                         </Box>
                     </div>
@@ -764,37 +844,76 @@ export default function MembersClient() {
                     </Box>
                 </DialogTitle>
                 <DialogContent>
-                    <Grid container spacing={3} mt={1}>
-                        {[
-                            { title: 'Aadhaar Card', icon: <AssignmentInd sx={{ fontSize: 40, color: 'text.secondary' }} /> },
-                            { title: 'PAN Card', icon: <CreditCard sx={{ fontSize: 40, color: 'text.secondary' }} /> },
-                            { title: 'Address Proof', icon: <LocationOn sx={{ fontSize: 40, color: 'text.secondary' }} /> },
-                            { title: 'Business License', icon: <Business sx={{ fontSize: 40, color: 'text.secondary' }} /> }
-                        ].map((doc, idx) => (
-                            <Grid size={{ xs: 12, md: 6 }} key={idx}>
-                                <Typography variant="subtitle2" fontWeight="medium" mb={1}>{doc.title}</Typography>
-                                <Box
-                                    sx={{
-                                        border: '2px dashed #e2e8f0',
-                                        borderRadius: '12px',
-                                        p: 4,
-                                        textAlign: 'center',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        '&:hover': {
-                                            bgcolor: 'rgba(37, 99, 235, 0.04)',
-                                            borderColor: '#2563eb'
-                                        }
-                                    }}
-                                >
-                                    {doc.icon}
-                                    <Typography variant="caption" display="block" color="text.secondary" mt={1}>
-                                        Click to view document
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                        ))}
-                    </Grid>
+                    {isLoadingKycDocs ? (
+                        <Box display="flex" justifyContent="center" alignItems="center" py={5}>
+                            <CircularProgress size={30} />
+                        </Box>
+                    ) : !kycDocuments || kycDocuments.length === 0 ? (
+                        <Box py={5} textAlign="center">
+                            <Typography color="text.secondary">No KYC documents found for this member.</Typography>
+                        </Box>
+                    ) : (
+                        <Grid container spacing={3} mt={1}>
+                            {kycDocuments.map((doc: any, idx: number) => (
+                                <Grid size={{ xs: 12, md: 6 }} key={idx}>
+                                    <Typography variant="subtitle2" fontWeight="medium" mb={1}>{doc.documentType}</Typography>
+                                    <Box
+                                        onClick={() => handleViewDocument(doc.signedUrl, doc.documentType)}
+                                        sx={{
+                                            border: '2px dashed #e2e8f0',
+                                            borderRadius: '12px',
+                                            p: 4,
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                bgcolor: 'rgba(37, 99, 235, 0.04)',
+                                                borderColor: '#2563eb'
+                                            }
+                                        }}
+                                    >
+                                        {doc.documentType.toLowerCase().includes('aadhaar') ? <AssignmentInd sx={{ fontSize: 40, color: 'text.secondary' }} /> :
+                                            doc.documentType.toLowerCase().includes('pan') ? <CreditCard sx={{ fontSize: 40, color: 'text.secondary' }} /> :
+                                                doc.documentType.toLowerCase().includes('address') ? <LocationOn sx={{ fontSize: 40, color: 'text.secondary' }} /> :
+                                                    <Business sx={{ fontSize: 40, color: 'text.secondary' }} />}
+                                        <Typography variant="caption" display="block" color="text.secondary" mt={1}>
+                                            Click to view document
+                                        </Typography>
+                                        <Chip
+                                            label={doc.verificationStatus}
+                                            size="small"
+                                            color={doc.verificationStatus === 'verified' ? 'success' : doc.verificationStatus === 'rejected' ? 'error' : 'warning'}
+                                            sx={{ mt: 1, textTransform: 'capitalize' }}
+                                        />
+                                    </Box>
+                                    {doc.verificationStatus === 'pending' && (
+                                        <Box display="flex" gap={1} mt={2}>
+                                            <Button
+                                                fullWidth
+                                                variant="outlined"
+                                                size="small"
+                                                color="success"
+                                                startIcon={<CheckCircle />}
+                                                onClick={() => handleUpdateDocStatus(doc.id, 'verified')}
+                                            >
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                fullWidth
+                                                variant="outlined"
+                                                size="small"
+                                                color="error"
+                                                startIcon={<Cancel />}
+                                                onClick={() => handleUpdateDocStatus(doc.id, 'rejected')}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </Box>
+                                    )}
+                                </Grid>
+                            ))}
+                        </Grid>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ p: 3, gap: 1 }}>
                     <Button
@@ -804,22 +923,52 @@ export default function MembersClient() {
                     >
                         Close
                     </Button>
-                    <Button
-                        variant="contained"
-                        sx={{ textTransform: 'none', borderRadius: '8px', bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
-                        startIcon={<CheckCircle />}
-                    >
-                        Approve KYC
-                    </Button>
-                    <Button
-                        variant="contained"
-                        sx={{ textTransform: 'none', borderRadius: '8px', bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
-                        startIcon={<Cancel />}
-                    >
-                        Reject KYC
-                    </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Document Viewer Modal */}
+            <Dialog
+                open={viewDocOpen}
+                onClose={() => setViewDocOpen(false)}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: '16px', bgcolor: 'black', color: 'white', overflow: 'hidden', height: '90vh' }
+                }}
+            >
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2} bgcolor="#1f2937">
+                    <Typography variant="h6">{viewDocType}</Typography>
+                    <Box>
+                        <IconButton onClick={() => window.open(viewDocUrl, '_blank')} sx={{ color: 'white', mr: 1 }} title="Open in new tab">
+                            <Download />
+                        </IconButton>
+                        <IconButton onClick={() => setViewDocOpen(false)} sx={{ color: 'white' }}>
+                            <Cancel />
+                        </IconButton>
+                    </Box>
+                </Box>
+                <Box flex={1} display="flex" justifyContent="center" alignItems="center" bgcolor="#000" overflow="auto" p={2} height="100%">
+                    {viewDocUrl && (viewDocUrl.toLowerCase().includes('.pdf') || viewDocType.toLowerCase().includes('pdf')) ? (
+                        <iframe src={viewDocUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Document Viewer" />
+                    ) : (
+                        <img
+                            src={viewDocUrl}
+                            alt="Document"
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        />
+                    )}
+                </Box>
+            </Dialog>
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={() => setSnackbarOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
