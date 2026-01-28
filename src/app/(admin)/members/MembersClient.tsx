@@ -61,7 +61,7 @@ import {
     AssignmentInd
 } from '@mui/icons-material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMembersDataAction, getMemberDetailsAction, getMemberKycDocumentsAction, updateKycDocumentStatusAction, getApprovalStatusesAction, updateMemberApprovalStatusAction, getMemberHierarchyAction, getMembersListAction } from '@/actions/member-actions';
+import { getMembersDataAction, getMemberDetailsAction, getMemberKycDocumentsAction, updateKycDocumentStatusAction, getApprovalStatusesAction, updateMemberApprovalStatusAction, getMemberHierarchyAction, getMembersListAction, updateMemberDetailsAction } from '@/actions/member-actions';
 
 export default function MembersClient() {
     const queryClient = useQueryClient();
@@ -85,6 +85,25 @@ export default function MembersClient() {
     const [viewDocType, setViewDocType] = useState('');
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
+
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        name: '',
+        phone: '',
+        dob: '',
+        gender: '',
+        shopName: '',
+        companyName: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        pincode: '',
+        bankAccountName: '',
+        bankAccountNo: '',
+        bankAccountIfsc: '',
+        upiId: ''
+    });
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -167,6 +186,50 @@ export default function MembersClient() {
         setDetailsModalOpen(true);
         handleMenuClose(`more-${member.id}`);
     };
+
+    const handleEditMember = (member: any) => {
+        setSelectedMember({ type: currentEntity.name, id: member.dbId, member });
+        setEditModalOpen(true);
+        handleMenuClose(`more-${member.id}`);
+    };
+
+    const handleSaveMember = async () => {
+        if (!selectedMember) return;
+        try {
+            await updateMemberDetailsAction(selectedMember.id, selectedMember.type, editFormData);
+            setEditModalOpen(false);
+            setSnackbarMessage('Member details updated successfully');
+            setSnackbarOpen(true);
+            queryClient.invalidateQueries({ queryKey: ['member-details', selectedMember.type, selectedMember.id] });
+            queryClient.invalidateQueries({ queryKey: ['members-list'] });
+        } catch (error) {
+            console.error("Failed to update member:", error);
+            setSnackbarMessage('Failed to update member details');
+            setSnackbarOpen(true);
+        }
+    };
+
+    useEffect(() => {
+        if (editModalOpen && memberDetails) {
+            setEditFormData({
+                name: (memberDetails as any).name || selectedMember?.member?.name || '',
+                phone: (memberDetails as any).phone || selectedMember?.member?.phone || '',
+                dob: (memberDetails as any).dob ? new Date((memberDetails as any).dob).toISOString().split('T')[0] : '',
+                gender: (memberDetails as any).gender || '',
+                shopName: (memberDetails as any).shopName || '',
+                companyName: (memberDetails as any).companyName || '',
+                addressLine1: (memberDetails as any).addressLine1 || '',
+                addressLine2: (memberDetails as any).addressLine2 || '',
+                city: (memberDetails as any).city || '',
+                state: (memberDetails as any).state || '',
+                pincode: (memberDetails as any).pincode || '',
+                bankAccountName: (memberDetails as any).bankAccountName || '',
+                bankAccountNo: (memberDetails as any).bankAccountNo || '',
+                bankAccountIfsc: (memberDetails as any).bankAccountIfsc || '',
+                upiId: (memberDetails as any).upiId || '',
+            });
+        }
+    }, [editModalOpen, memberDetails, selectedMember]);
 
     const handleViewDocument = (url: string, type: string) => {
         console.log(url)
@@ -543,7 +606,7 @@ export default function MembersClient() {
                                                             <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
                                                             <ListItemText primary="View Details" />
                                                         </MenuItem>
-                                                        <MenuItem onClick={() => handleMenuClose(`more-${member.id}`)}>
+                                                        <MenuItem onClick={() => handleEditMember(member)}>
                                                             <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                                                             <ListItemText primary="Edit Member" />
                                                         </MenuItem>
@@ -674,13 +737,7 @@ export default function MembersClient() {
                                             <Typography variant="body1" fontWeight="medium">{(memberDetails as any).phone || 'N/A'}</Typography>
                                         </Box>
                                     </Box>
-                                    <Box display="flex" alignItems="center" gap={2}>
-                                        <EmailIcon color="action" />
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary">Email Address</Typography>
-                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).email || 'N/A'}</Typography>
-                                        </Box>
-                                    </Box>
+
                                     <Box display="flex" alignItems="center" gap={2}>
                                         <CalendarToday color="action" />
                                         <Box>
@@ -708,7 +765,7 @@ export default function MembersClient() {
                                             <Store color="action" />
                                             <Box>
                                                 <Typography variant="caption" color="text.secondary">Store Name</Typography>
-                                                <Typography variant="body1" fontWeight="medium">{(memberDetails as any).storeName || 'N/A'}</Typography>
+                                                <Typography variant="body1" fontWeight="medium">{(memberDetails as any).shopName || 'N/A'}</Typography>
                                             </Box>
                                         </Box>
                                     )}
@@ -731,20 +788,7 @@ export default function MembersClient() {
                                             </Typography>
                                         </Box>
                                     </Box>
-                                    <Box display="flex" alignItems="center" gap={2}>
-                                        <Badge color="action" />
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary">Aadhaar Number</Typography>
-                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).aadhaar || 'N/A'}</Typography>
-                                        </Box>
-                                    </Box>
-                                    <Box display="flex" alignItems="center" gap={2}>
-                                        <CreditCard color="action" />
-                                        <Box>
-                                            <Typography variant="caption" color="text.secondary">PAN Number</Typography>
-                                            <Typography variant="body1" fontWeight="medium">{(memberDetails as any).pan || 'N/A'}</Typography>
-                                        </Box>
-                                    </Box>
+
                                 </Stack>
                             </Grid>
 
@@ -922,6 +966,190 @@ export default function MembersClient() {
                         sx={{ textTransform: 'none', borderRadius: '8px' }}
                     >
                         Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Edit Member Modal */}
+            <Dialog
+                open={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: '16px' }
+                }}
+            >
+                <DialogTitle>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6" fontWeight="bold">Edit Member Details</Typography>
+                        <IconButton onClick={() => setEditModalOpen(false)}>
+                            <Cancel />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={3} sx={{ mt: 1 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                                label="Name"
+                                fullWidth
+                                disabled
+                                value={editFormData.name}
+                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                                label="Phone Number"
+                                fullWidth
+                                disabled
+                                value={editFormData.phone}
+                                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                                label="Date of Birth"
+                                type="date"
+                                fullWidth
+                                disabled
+                                value={editFormData.dob}
+                                InputLabelProps={{ shrink: true }}
+                                onChange={(e) => setEditFormData({ ...editFormData, dob: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                                label="Gender"
+                                fullWidth
+                                select
+                                disabled
+                                value={editFormData.gender}
+                                onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                            >
+                                <MenuItem value="Male">Male</MenuItem>
+                                <MenuItem value="Female">Female</MenuItem>
+                                <MenuItem value="Other">Other</MenuItem>
+                            </TextField>
+                        </Grid>
+
+                        {/* Store Name - Visible if Retailer or if data exists */}
+                        {(selectedMember?.type?.toLowerCase().includes('retailer') || editFormData.shopName) && (
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField
+                                    label="Store Name"
+                                    fullWidth
+                                    value={editFormData.shopName}
+                                    onChange={(e) => setEditFormData({ ...editFormData, shopName: e.target.value })}
+                                />
+                            </Grid>
+                        )}
+
+                        {/* Company Name removed as it is not in schema yet
+                        {selectedMember?.type?.toLowerCase().includes('counter sales') && (
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField
+                                    label="Company Name"
+                                    fullWidth
+                                    value={editFormData.companyName}
+                                    onChange={(e) => setEditFormData({ ...editFormData, companyName: e.target.value })}
+                                />
+                            </Grid>
+                        )}
+                        */}
+
+                        <Grid size={{ xs: 12 }}>
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>Location Details</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField
+                                label="Address Line 1"
+                                fullWidth
+                                value={editFormData.addressLine1}
+                                onChange={(e) => setEditFormData({ ...editFormData, addressLine1: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField
+                                label="Address Line 2"
+                                fullWidth
+                                value={editFormData.addressLine2}
+                                onChange={(e) => setEditFormData({ ...editFormData, addressLine2: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                                label="City"
+                                fullWidth
+                                value={editFormData.city}
+                                onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                                label="State"
+                                fullWidth
+                                value={editFormData.state}
+                                onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                                label="Pincode"
+                                fullWidth
+                                value={editFormData.pincode}
+                                onChange={(e) => setEditFormData({ ...editFormData, pincode: e.target.value })}
+                            />
+                        </Grid>
+
+                        <Grid size={{ xs: 12 }}>
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>Bank Account Details</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField
+                                label="Account Holder Name"
+                                fullWidth
+                                disabled
+                                value={editFormData.bankAccountName}
+                                onChange={(e) => setEditFormData({ ...editFormData, bankAccountName: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField
+                                label="Account Number"
+                                fullWidth
+                                disabled
+                                value={editFormData.bankAccountNo}
+                                onChange={(e) => setEditFormData({ ...editFormData, bankAccountNo: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField
+                                label="IFSC Code"
+                                fullWidth
+                                disabled
+                                value={editFormData.bankAccountIfsc}
+                                onChange={(e) => setEditFormData({ ...editFormData, bankAccountIfsc: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField
+                                label="UPI ID"
+                                fullWidth
+                                disabled
+                                value={editFormData.upiId}
+                                onChange={(e) => setEditFormData({ ...editFormData, upiId: e.target.value })}
+                            />
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={() => setEditModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSaveMember} variant="contained" sx={{ bgcolor: '#2563eb', borderRadius: '8px' }}>
+                        Save Changes
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -167,9 +167,33 @@ export async function getMembersDataAction(filters?: MemberFilters): Promise<Mem
 
 export async function getMemberDetailsAction(type: string, id: number) {
     try {
-        // Simple fetch from users for now
-        const result = await db.select().from(users).where(eq(users.id, id));
-        return result[0];
+        const normalizedType = type.toLowerCase();
+        let specificRecord = null;
+
+        // 1. Fetch base user record
+        const userRecords = await db.select().from(users).where(eq(users.id, id));
+        const userRecord = userRecords[0];
+
+        if (!userRecord) return null;
+
+        // 2. Fetch specific details based on type
+        if (normalizedType.includes('retailer')) {
+            const records = await db.select().from(retailers).where(eq(retailers.userId, id));
+            if (records.length > 0) specificRecord = records[0];
+        } else if (normalizedType.includes('electrician')) {
+            const records = await db.select().from(electricians).where(eq(electricians.userId, id));
+            if (records.length > 0) specificRecord = records[0];
+        } else if (normalizedType.includes('counter sales')) {
+            const records = await db.select().from(counterSales).where(eq(counterSales.userId, id));
+            if (records.length > 0) specificRecord = records[0];
+        }
+
+        // 3. Return specific record if found, otherwise fallback to user record
+        if (specificRecord) {
+            return specificRecord;
+        }
+
+        return userRecord;
     } catch (error) {
         console.error("Error in getMemberDetailsAction:", error);
         throw error;
@@ -337,6 +361,49 @@ export async function updateMemberApprovalStatusAction(userId: number, statusId:
         return { success: true };
     } catch (error) {
         console.error("Error in updateMemberApprovalStatusAction:", error);
+        throw error;
+    }
+}
+
+export async function updateMemberDetailsAction(userId: number, type: string, data: any) {
+    try {
+        const normalizedType = type.toLowerCase();
+
+        // Define location fields to update
+        const locationUpdates = {
+            addressLine1: data.addressLine1,
+            addressLine2: data.addressLine2, // Add if captured in form
+            city: data.city,
+            state: data.state,
+            pincode: data.pincode,
+        };
+
+        // Update specific table based on type
+        if (normalizedType.includes('retailer')) {
+            await db.update(retailers)
+                .set({
+                    ...locationUpdates,
+                    shopName: data.shopName,
+                })
+                .where(eq(retailers.userId, userId));
+        } else if (normalizedType.includes('electrician')) {
+            await db.update(electricians)
+                .set({
+                    ...locationUpdates,
+                })
+                .where(eq(electricians.userId, userId));
+        } else if (normalizedType.includes('counter sales')) {
+            await db.update(counterSales)
+                .set({
+                    ...locationUpdates,
+                })
+                .where(eq(counterSales.userId, userId));
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error in updateMemberDetailsAction:", error);
         throw error;
     }
 }
