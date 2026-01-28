@@ -32,3 +32,13 @@ jobs:
           # Caching helps speed up subsequent builds significantly
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/sturlite-admin:uat
           cache-to: type=inline
+
+  trigger-deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Deployment Signal
+        run: |
+          curl -X POST http://${{ secrets.PUBLIC_VPN_IP }}/deploy-trigger \
+          -H "X-Webhook-Secret: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}" \
+          -v          
