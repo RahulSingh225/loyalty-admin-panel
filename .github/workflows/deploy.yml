@@ -1,0 +1,34 @@
+name: Build and Push to Docker Hub
+
+on:
+  push:
+    branches: [ "main" ] # Triggers only on pushes to main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        # Buildx allows for advanced caching and multi-platform builds
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # Replace 'my-nextjs-app' with your actual repo name
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/my-nextjs-app:latest
+          # Caching helps speed up subsequent builds significantly
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/sturlite-admin:uat
+          cache-to: type=inline
