@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { RabbitMQConnector } from '@/server/rabbitMq/broker';
+import { BUS_EVENTS, initMQ, emitEvent } from '@/server/rabbitMq/broker';
 import { GenerateQrPayload, CustomError } from '@/lib/types';
 import { customValidators } from '@/lib/utils/custom-validators';
 import { inventoryBatchRepository } from '@/server/repositories';
@@ -18,8 +18,7 @@ class QrService {
             if (!doesSkuExist) {
                 return { success: false, message: 'SKU (Variant) not present', status: 404 };
             }
-            const brokerObject = new RabbitMQConnector();
-            await brokerObject.publish('qrExchange.relaxwell', { payload });
+            await emitEvent(BUS_EVENTS.QR_BATCH_CREATED, payload);
 
 
             return { success: true, message: 'Qr Generation In progress please check after some time' };

@@ -3,6 +3,9 @@ import { sql } from "drizzle-orm"
 
 export const blockStatus = pgEnum("block_status", ['basic_registration', 'phone_number_verified', 'digilocker', 'pan_verification', 'gst_number_verification', 'bank_account_verified', 'pending_kyc_verification', 'profile_updated', 'none'])
 export const inventoryType = pgEnum("inventory_type", ['inner', 'outer'])
+export const notificationChannel = pgEnum("notification_channel", ['sms', 'push'])
+export const notificationStatus = pgEnum("notification_status", ['pending', 'sent', 'failed', 'delivered'])
+export const notificationTriggerType = pgEnum("notification_trigger_type", ['automated', 'campaign', 'manual'])
 export const otpType = pgEnum("otp_type", ['login', 'password_reset', 'registration', 'kyc'])
 
 
@@ -304,19 +307,6 @@ export const electricianTransactionLogs = pgTable("electrician_transaction_logs"
 	}).onDelete("cascade"),
 ]);
 
-export const eventMaster = pgTable("event_master", {
-	id: serial().primaryKey().notNull(),
-	eventKey: text("event_key").notNull(),
-	name: text().notNull(),
-	description: text(),
-	category: text(),
-	isActive: boolean("is_active").default(true),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-}, (table) => [
-	unique("event_master_event_key_key").on(table.eventKey),
-	unique("event_master_name_key").on(table.name),
-]);
-
 export const locationEntity = pgTable("location_entity", {
 	id: serial().primaryKey().notNull(),
 	clientId: integer("client_id").notNull(),
@@ -490,6 +480,25 @@ export const electricianTransactions = pgTable("electrician_transactions", {
 		foreignColumns: [users.id],
 		name: "electrician_transactions_user_id_fkey"
 	}).onDelete("cascade"),
+]);
+
+export const eventMaster = pgTable("event_master", {
+	id: serial().primaryKey().notNull(),
+	eventKey: text("event_key").notNull(),
+	name: text().notNull(),
+	description: text(),
+	category: text(),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	templateId: integer("template_id"),
+}, (table) => [
+	foreignKey({
+		columns: [table.templateId],
+		foreignColumns: [notificationTemplates.id],
+		name: "event_master_template_id_fkey"
+	}),
+	unique("event_master_event_key_key").on(table.eventKey),
+	unique("event_master_name_key").on(table.name),
 ]);
 
 export const otpMaster = pgTable("otp_master", {
@@ -668,6 +677,7 @@ export const redemptions = pgTable("redemptions", {
 	approvedBy: integer("approved_by"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	channelReferenceId: integer("channel_reference_id"),
 }, (table) => [
 	foreignKey({
 		columns: [table.approvedBy],
@@ -717,6 +727,35 @@ export const referrals = pgTable("referrals", {
 	}),
 ]);
 
+export const skuPointConfig = pgTable("sku_point_config", {
+	id: serial().primaryKey().notNull(),
+	clientId: integer("client_id").notNull(),
+	skuVariantId: integer("sku_variant_id").notNull(),
+	userTypeId: integer("user_type_id").notNull(),
+	pointsPerUnit: numeric("points_per_unit", { precision: 10, scale: 2 }).notNull(),
+	validFrom: timestamp("valid_from", { mode: 'string' }),
+	validTo: timestamp("valid_to", { mode: 'string' }),
+	remarks: text(),
+	maxScansPerDay: integer("max_scans_per_day").default(5),
+	isActive: boolean("is_active").default(true),
+}, (table) => [
+	uniqueIndex("uq_sku_user_type").using("btree", table.clientId.asc().nullsLast().op("int4_ops"), table.skuVariantId.asc().nullsLast().op("int4_ops"), table.userTypeId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+		columns: [table.clientId],
+		foreignColumns: [client.id],
+		name: "sku_point_config_client_id_fkey"
+	}),
+	foreignKey({
+		columns: [table.skuVariantId],
+		foreignColumns: [skuVariant.id],
+		name: "sku_point_config_sku_variant_id_fkey"
+	}),
+	foreignKey({
+		columns: [table.userTypeId],
+		foreignColumns: [userTypeEntity.id],
+		name: "sku_point_config_user_type_id_fkey"
+	}),
+]);
 
 export const schemes = pgTable("schemes", {
 	id: serial().primaryKey().notNull(),
@@ -912,60 +951,6 @@ export const retailerTransactions = pgTable("retailer_transactions", {
 	}).onDelete("cascade"),
 ]);
 
-
-
-
-
-export const skuPointConfig = pgTable("sku_point_config", {
-	id: serial().primaryKey().notNull(),
-	clientId: integer("client_id").notNull(),
-	skuVariantId: integer("sku_variant_id").notNull(),
-	userTypeId: integer("user_type_id").notNull(),
-	pointsPerUnit: numeric("points_per_unit", { precision: 10, scale: 2 }).notNull(),
-	validFrom: timestamp("valid_from", { mode: 'string' }),
-	validTo: timestamp("valid_to", { mode: 'string' }),
-	maxScansPerDay: integer("max_scans_per_day").default(5),
-	isActive: boolean("is_active").default(true),
-	remarks: text(),
-}, (table) => [
-	uniqueIndex("uq_sku_user_type").using("btree", table.clientId.asc().nullsLast().op("int4_ops"), table.skuVariantId.asc().nullsLast().op("int4_ops"), table.userTypeId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-		columns: [table.clientId],
-		foreignColumns: [client.id],
-		name: "sku_point_config_client_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.skuVariantId],
-		foreignColumns: [skuVariant.id],
-		name: "sku_point_config_sku_variant_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.userTypeId],
-		foreignColumns: [userTypeEntity.id],
-		name: "sku_point_config_user_type_id_fkey"
-	}),
-]);
-
-export const skuPointRules = pgTable("sku_point_rules", {
-	id: serial().primaryKey(),
-	name: text().notNull(), // e.g. "Diwali Bonus - North Zone"
-	priority: integer().default(0), // High priority runs last (overrides others)
-	// Conditions (Nullable - NULL means "Any")
-	clientId: integer("client_id").notNull(),
-	locationEntityId: integer("location_entity_id"),
-	skuEntityId: integer("sku_entity_id"),
-	skuVariantId: integer("sku_variant_id"),
-	userTypeId: integer("user_type_id"),
-	// Action
-	actionType: varchar("action_type", { length: 20 }).notNull(), // 'FLAT_OVERRIDE', 'PERCENTAGE_ADD', 'FIXED_ADD'
-	actionValue: numeric("action_value").notNull(),
-	// Validity
-	isActive: boolean("is_active").default(true),
-	validFrom: timestamp("valid_from"),
-	validTo: timestamp("valid_to"),
-	description: text(),
-});
-
 export const tdsRecords = pgTable("tds_records", {
 	id: serial().primaryKey().notNull(),
 	userId: integer("user_id").notNull(),
@@ -1005,8 +990,6 @@ export const tblRandomKeys = pgTable("tbl_random_keys", {
 }, (table) => [
 	unique("tbl_random_keys_random_key_unique").on(table.randomKey),
 ]);
-
-
 
 export const thirdPartyVerificationLogs = pgTable("third_party_verification_logs", {
 	id: serial().primaryKey().notNull(),
@@ -1161,10 +1144,14 @@ export const userTypeEntity = pgTable("user_type_entity", {
 	typeName: text("type_name").notNull(),
 	parentTypeId: integer("parent_type_id"),
 	isActive: boolean("is_active").default(true),
+	remarks: text(),
 	maxDailyScans: integer("max_daily_scans").default(50),
 	requiredKycLevel: text("required_kyc_level").default('Basic'),
+	isReferralEnabled: boolean("is_referral_enabled").default(true),
+	referralRewardPoints: integer("referral_reward_points").default(0),
+	refereeRewardPoints: integer("referee_reward_points").default(0),
+	maxReferrals: integer("max_referrals").default(10),
 	allowedRedemptionChannels: jsonb("allowed_redemption_channels").default([]),
-	remarks: text(),
 }, (table) => [
 	foreignKey({
 		columns: [table.levelId],
@@ -1291,18 +1278,6 @@ export const eventLogs = pgTable("event_logs", {
 	}),
 ]);
 
-export const redemptionChannels = pgTable("redemption_channels", {
-	id: serial().primaryKey().notNull(),
-	name: text().notNull(),
-	description: text(),
-	isActive: boolean("is_active").default(true),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	unique("redemption_channels_name_key").on(table.name),
-]);
-
-
-
 export const tickets = pgTable("tickets", {
 	id: serial().primaryKey().notNull(),
 	typeId: integer("type_id").notNull(),
@@ -1331,6 +1306,18 @@ export const tickets = pgTable("tickets", {
 		foreignColumns: [ticketTypes.id],
 		name: "tickets_type_id_fkey"
 	}).onDelete("restrict"),
+]);
+
+export const redemptionChannels = pgTable("redemption_channels", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	description: text(),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	code: text(),
+}, (table) => [
+	unique("redemption_channels_name_key").on(table.name),
+	unique("redemption_channels_code_unique").on(table.code),
 ]);
 
 export const amazonMarketplaceProducts = pgTable("amazon_marketplace_products", {
@@ -1665,4 +1652,152 @@ export const inappNotifications = pgTable("inapp_notifications", {
 		foreignColumns: [users.id],
 		name: "inapp_notifications_user_id_fkey"
 	}),
+]);
+
+export const skuPointRules = pgTable("sku_point_rules", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	priority: integer().default(0),
+	clientId: integer("client_id").notNull(),
+	locationEntityId: integer("location_entity_id"),
+	skuEntityId: integer("sku_entity_id"),
+	skuVariantId: integer("sku_variant_id"),
+	userTypeId: integer("user_type_id"),
+	actionType: varchar("action_type", { length: 20 }).notNull(),
+	actionValue: numeric("action_value").notNull(),
+	isActive: boolean("is_active").default(true),
+	validFrom: timestamp("valid_from", { mode: 'string' }),
+	validTo: timestamp("valid_to", { mode: 'string' }),
+	description: text(),
+});
+
+export const notificationLogs = pgTable("notification_logs", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id").notNull(),
+	channel: notificationChannel().notNull(),
+	templateId: integer("template_id"),
+	triggerType: notificationTriggerType("trigger_type").notNull(),
+	status: notificationStatus().default('pending'),
+	metadata: jsonb().default({}),
+	sentAt: timestamp("sent_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "notification_logs_user_id_fkey"
+	}),
+	foreignKey({
+		columns: [table.templateId],
+		foreignColumns: [notificationTemplates.id],
+		name: "notification_logs_template_id_fkey"
+	}),
+]);
+
+export const notificationTemplates = pgTable("notification_templates", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	slug: text().notNull(),
+	triggerType: notificationTriggerType("trigger_type").default('automated').notNull(),
+	pushTitle: text("push_title"),
+	pushBody: text("push_body"),
+	smsBody: text("sms_body"),
+	placeholders: jsonb().default([]),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	unique("notification_templates_slug_unique").on(table.slug),
+]);
+
+export const redemptionUpi = pgTable("redemption_upi", {
+	id: serial().primaryKey().notNull(),
+	redemptionId: integer("redemption_id").notNull(),
+	upiId: text("upi_id").notNull(),
+	razorpayPayoutId: text("razorpay_payout_id"),
+	razorpayFundAccountId: text("razorpay_fund_account_id"),
+	razorpayContactId: text("razorpay_contact_id"),
+	utr: text(),
+	processedAt: timestamp("processed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.redemptionId],
+		foreignColumns: [redemptions.id],
+		name: "redemption_upi_redemption_id_fkey"
+	}).onDelete("cascade"),
+	unique("redemption_upi_redemption_id_unique").on(table.redemptionId),
+]);
+
+export const redemptionVouchers = pgTable("redemption_vouchers", {
+	id: serial().primaryKey().notNull(),
+	redemptionId: integer("redemption_id").notNull(),
+	voucherCode: text("voucher_code").notNull(),
+	voucherPin: text("voucher_pin"),
+	platformVoucherId: text("platform_voucher_id"),
+	platformOrderId: text("platform_order_id"),
+	validFrom: timestamp("valid_from", { mode: 'string' }).defaultNow(),
+	validUntil: timestamp("valid_until", { mode: 'string' }),
+	isRedeemed: boolean("is_redeemed").default(false),
+	redeemedAt: timestamp("redeemed_at", { mode: 'string' }),
+	brand: text(),
+	denomination: numeric({ precision: 10, scale: 2 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.redemptionId],
+		foreignColumns: [redemptions.id],
+		name: "redemption_vouchers_redemption_id_fkey"
+	}).onDelete("cascade"),
+	unique("redemption_vouchers_redemption_id_unique").on(table.redemptionId),
+	unique("redemption_vouchers_voucher_code_unique").on(table.voucherCode),
+]);
+
+export const thirdPartyApiLogs = pgTable("third_party_api_logs", {
+	id: serial().primaryKey().notNull(),
+	redemptionId: integer("redemption_id"),
+	provider: text().notNull(),
+	apiType: text("api_type").notNull(),
+	apiEndpoint: text("api_endpoint").notNull(),
+	httpMethod: text("http_method"),
+	requestPayload: jsonb("request_payload"),
+	responsePayload: jsonb("response_payload"),
+	httpStatusCode: integer("http_status_code"),
+	isSuccess: boolean("is_success"),
+	errorMessage: text("error_message"),
+	webhookEventType: text("webhook_event_type"),
+	webhookSignature: text("webhook_signature"),
+	responseTimeMs: integer("response_time_ms"),
+	metadata: jsonb().default({}),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+		columns: [table.redemptionId],
+		foreignColumns: [redemptions.id],
+		name: "third_party_api_logs_redemption_id_fkey"
+	}).onDelete("set null"),
+]);
+
+export const redemptionBankTransfers = pgTable("redemption_bank_transfers", {
+	id: serial().primaryKey().notNull(),
+	redemptionId: integer("redemption_id").notNull(),
+	accountNumber: text("account_number").notNull(),
+	ifscCode: text("ifsc_code").notNull(),
+	accountHolderName: text("account_holder_name").notNull(),
+	bankName: text("bank_name"),
+	razorpayPayoutId: text("razorpay_payout_id"),
+	razorpayFundAccountId: text("razorpay_fund_account_id"),
+	razorpayContactId: text("razorpay_contact_id"),
+	utr: text(),
+	processedAt: timestamp("processed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	foreignKey({
+		columns: [table.redemptionId],
+		foreignColumns: [redemptions.id],
+		name: "redemption_bank_transfers_redemption_id_fkey"
+	}).onDelete("cascade"),
+	unique("redemption_bank_transfers_redemption_id_unique").on(table.redemptionId),
 ]);

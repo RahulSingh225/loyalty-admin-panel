@@ -157,6 +157,28 @@ export default function MembersClient() {
         queryFn: getApprovalStatusesAction
     });
 
+    useEffect(() => {
+        if (editModalOpen && memberDetails) {
+            setEditFormData({
+                name: (memberDetails as any).name || selectedMember?.member?.name || '',
+                phone: (memberDetails as any).phone || selectedMember?.member?.phone || '',
+                dob: (memberDetails as any).dob ? new Date((memberDetails as any).dob).toISOString().split('T')[0] : '',
+                gender: (memberDetails as any).gender || '',
+                shopName: (memberDetails as any).shopName || '',
+                companyName: (memberDetails as any).companyName || '',
+                addressLine1: (memberDetails as any).addressLine1 || '',
+                addressLine2: (memberDetails as any).addressLine2 || '',
+                city: (memberDetails as any).city || '',
+                state: (memberDetails as any).state || '',
+                pincode: (memberDetails as any).pincode || '',
+                bankAccountName: (memberDetails as any).bankAccountName || '',
+                bankAccountNo: (memberDetails as any).bankAccountNo || '',
+                bankAccountIfsc: (memberDetails as any).bankAccountIfsc || '',
+                upiId: (memberDetails as any).upiId || '',
+            });
+        }
+    }, [editModalOpen, memberDetails, selectedMember]);
+
     if (!hierarchyData || !hierarchyData.levels || hierarchyData.levels.length === 0) return null;
 
     // Ensure entityTab is valid for currentLevel (re-calculated above but here for initial render checks if needed, but activeEntityTab covers it)
@@ -209,27 +231,6 @@ export default function MembersClient() {
         }
     };
 
-    useEffect(() => {
-        if (editModalOpen && memberDetails) {
-            setEditFormData({
-                name: (memberDetails as any).name || selectedMember?.member?.name || '',
-                phone: (memberDetails as any).phone || selectedMember?.member?.phone || '',
-                dob: (memberDetails as any).dob ? new Date((memberDetails as any).dob).toISOString().split('T')[0] : '',
-                gender: (memberDetails as any).gender || '',
-                shopName: (memberDetails as any).shopName || '',
-                companyName: (memberDetails as any).companyName || '',
-                addressLine1: (memberDetails as any).addressLine1 || '',
-                addressLine2: (memberDetails as any).addressLine2 || '',
-                city: (memberDetails as any).city || '',
-                state: (memberDetails as any).state || '',
-                pincode: (memberDetails as any).pincode || '',
-                bankAccountName: (memberDetails as any).bankAccountName || '',
-                bankAccountNo: (memberDetails as any).bankAccountNo || '',
-                bankAccountIfsc: (memberDetails as any).bankAccountIfsc || '',
-                upiId: (memberDetails as any).upiId || '',
-            });
-        }
-    }, [editModalOpen, memberDetails, selectedMember]);
 
     const handleViewDocument = (url: string, type: string) => {
         console.log(url)

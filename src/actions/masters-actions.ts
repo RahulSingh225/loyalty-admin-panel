@@ -282,8 +282,8 @@ export async function upsertPointsMatrixRuleAction(data: {
                     actionValue: data.actionValue.toString(),
                     description: data.description,
                     isActive: data.isActive,
-                    validFrom: data.validFrom ? new Date(data.validFrom) : null,
-                    validTo: data.validTo ? new Date(data.validTo) : null
+                    validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+                    validTo: data.validTo ? new Date(data.validTo).toISOString() : null
                 })
                 .where(eq(skuPointRules.id, data.id));
         } else {
@@ -297,8 +297,8 @@ export async function upsertPointsMatrixRuleAction(data: {
                 actionValue: data.actionValue.toString(),
                 description: data.description,
                 isActive: data.isActive,
-                validFrom: data.validFrom ? new Date(data.validFrom) : null,
-                validTo: data.validTo ? new Date(data.validTo) : null
+                validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+                validTo: data.validTo ? new Date(data.validTo).toISOString() : null
             });
         }
         return { success: true };

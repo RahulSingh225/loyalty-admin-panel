@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/db"
-import { appConfigs, creatives, creativesTypes } from "@/db/schema"
+import { appConfigs, creatives, creativesTypes, userTypeEntity } from "@/db/schema"
 import { eq } from "drizzle-orm"
 
 export async function getConfigurationAction() {
@@ -10,8 +10,26 @@ export async function getConfigurationAction() {
         const creativeTypesList = await db.select().from(creativesTypes).where(eq(creativesTypes.isActive, true));
         const creativesList = await db.select().from(creatives).where(eq(creatives.isActive, true));
 
-        // In a real app, you would fetch from database
-        // const configs = await db.select().from(appConfigs);
+        // Fetch real global config from database
+        const globalConfigRecord = await db.query.appConfigs.findFirst({
+            where: eq(appConfigs.key, 'referral_global_config')
+        });
+
+        const globalReferralConfig = globalConfigRecord?.value as any || {
+            enabled: true,
+            prefix: "STURLITE",
+            validityDays: 30,
+            successMessage: "Congratulations! Your friend has joined using your referral code."
+        };
+
+        const userTypes = await db.select({
+            id: userTypeEntity.id,
+            name: userTypeEntity.typeName,
+            isReferralEnabled: userTypeEntity.isReferralEnabled,
+            referralRewardPoints: userTypeEntity.referralRewardPoints,
+            refereeRewardPoints: userTypeEntity.refereeRewardPoints,
+            maxReferrals: userTypeEntity.maxReferrals
+        }).from(userTypeEntity).where(eq(userTypeEntity.isActive, true));
 
         // Returning data that matches the UI
         return {
@@ -21,13 +39,8 @@ export async function getConfigurationAction() {
                 electrician: { minPoints: 100, maxDay: 1000, maxWeek: 5000, maxMonth: 20000 },
             },
             referralConfig: {
-                enabled: true,
-                referralPoints: 100,
-                refereePoints: 50,
-                successMessage: "Congratulations! Your friend has joined using your referral code.",
-                prefix: "STURLITE",
-                maxReferrals: 10,
-                validityDays: 30
+                global: globalReferralConfig,
+                userTypes: userTypes
             },
             creativeTypes: creativeTypesList,
             creatives: creativesList

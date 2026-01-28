@@ -1,8 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getConfigurationAction } from '@/actions/configuration-actions';
+import {
+    updateReferralGlobalConfigAction,
+    updateUserTypeReferralConfigAction
+} from '@/actions/referral-actions';
 import {
     Box,
     Typography,
@@ -83,13 +87,74 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 export default function ConfigurationClient() {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState(1);
     const [userType, setUserType] = useState('');
+    const [selectedReferralUserType, setSelectedReferralUserType] = useState<number | ''>('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const { data: configData } = useQuery({
         queryKey: ['configuration'],
         queryFn: getConfigurationAction
     });
+
+    // Updated states for referral form
+    const [referralGlobalFields, setReferralGlobalFields] = useState<any>(null);
+    const [referralUserTypeFields, setReferralUserTypeFields] = useState<any>(null);
+
+    // Initial load of fields when configData arrives
+    useState(() => {
+        if (configData?.referralConfig?.global) {
+            setReferralGlobalFields(configData.referralConfig.global);
+        }
+    });
+
+    const handleReferralUserTypeChange = (userTypeId: number | '') => {
+        setSelectedReferralUserType(userTypeId);
+        if (userTypeId === '') {
+            setReferralUserTypeFields(null);
+        } else {
+            const utConfig = configData?.referralConfig?.userTypes?.find((ut: any) => ut.id === userTypeId);
+            if (utConfig) {
+                setReferralUserTypeFields({
+                    isReferralEnabled: utConfig.isReferralEnabled,
+                    referralRewardPoints: utConfig.referralRewardPoints,
+                    refereeRewardPoints: utConfig.refereeRewardPoints,
+                    maxReferrals: utConfig.maxReferrals
+                });
+            } else {
+                setReferralUserTypeFields({
+                    isReferralEnabled: true,
+                    referralRewardPoints: 0,
+                    refereeRewardPoints: 0,
+                    maxReferrals: 10
+                });
+            }
+        }
+    };
+
+    const handleSaveReferralConfig = async () => {
+        setIsSaving(true);
+        try {
+            // 1. Save Global Config
+            if (referralGlobalFields) {
+                await updateReferralGlobalConfigAction(referralGlobalFields);
+            }
+
+            // 2. Save UserType Config if selected
+            if (selectedReferralUserType !== '' && referralUserTypeFields) {
+                await updateUserTypeReferralConfigAction(selectedReferralUserType, referralUserTypeFields);
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['configuration'] });
+            alert('Configuration saved successfully!');
+        } catch (error) {
+            console.error("Save failed:", error);
+            alert('Failed to save configuration.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setActiveTab(newValue);
@@ -312,56 +377,164 @@ export default function ConfigurationClient() {
             {activeTab === 2 && (
                 <div className="widget-card rounded-xl shadow p-8 max-w-4xl mx-auto">
                     <h3 className="text-lg font-semibold text-primary mb-6 border-b pb-4">Referral Configuration</h3>
-                    <Box component="form" className="space-y-6">
-                        <FormControlLabel
-                            control={<Checkbox defaultChecked sx={{ '&.Mui-checked': { color: '#2563eb' } }} />}
-                            label={<Typography fontWeight="500">Enable Referral Program</Typography>}
-                        />
+                    <Box className="space-y-6">
+                        {/* Global System Settings */}
+                        <Box className="bg-blue-50 p-4 rounded-lg mb-6">
+                            <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>Global System Settings</Typography>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={referralGlobalFields?.enabled ?? configData?.referralConfig?.global?.enabled ?? true}
+                                        onChange={(e) => setReferralGlobalFields({
+                                            ...(referralGlobalFields || configData?.referralConfig?.global),
+                                            enabled: e.target.checked
+                                        })}
+                                        sx={{ '&.Mui-checked': { color: '#2563eb' } }}
+                                    />
+                                }
+                                label={<Typography fontWeight="500">Enable Referral Program System-wide</Typography>}
+                            />
 
-                        <Grid container spacing={4}>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Referral Reward Points</label>
-                                    <TextField fullWidth size="small" type="number" defaultValue={100} />
-                                </div>
+                            <Grid container spacing={4} sx={{ mt: 1 }}>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-medium text-gray-700">Referral Code Prefix</label>
+                                        <TextField
+                                            fullWidth size="small"
+                                            value={referralGlobalFields?.prefix ?? configData?.referralConfig?.global?.prefix ?? "STURLITE"}
+                                            onChange={(e) => setReferralGlobalFields({
+                                                ...(referralGlobalFields || configData?.referralConfig?.global),
+                                                prefix: e.target.value
+                                            })}
+                                        />
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-medium text-gray-700">Referral Validity (Days)</label>
+                                        <TextField
+                                            fullWidth size="small" type="number"
+                                            value={referralGlobalFields?.validityDays ?? configData?.referralConfig?.global?.validityDays ?? 30}
+                                            onChange={(e) => setReferralGlobalFields({
+                                                ...(referralGlobalFields || configData?.referralConfig?.global),
+                                                validityDays: parseInt(e.target.value)
+                                            })}
+                                        />
+                                    </div>
+                                </Grid>
+                                <Grid size={{ xs: 12 }}>
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-medium text-gray-700">Success Message</label>
+                                        <TextField
+                                            fullWidth size="small" multiline rows={2}
+                                            value={referralGlobalFields?.successMessage ?? configData?.referralConfig?.global?.successMessage ?? ""}
+                                            onChange={(e) => setReferralGlobalFields({
+                                                ...(referralGlobalFields || configData?.referralConfig?.global),
+                                                successMessage: e.target.value
+                                            })}
+                                        />
+                                    </div>
+                                </Grid>
                             </Grid>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Referee Reward Points</label>
-                                    <TextField fullWidth size="small" type="number" defaultValue={50} />
-                                </div>
-                            </Grid>
-                            <Grid size={{ xs: 12 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Success Message</label>
-                                    <TextField fullWidth size="small" multiline rows={2} defaultValue="Congratulations! Your friend has joined using your referral code." />
-                                </div>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Referral Code Prefix</label>
-                                    <TextField fullWidth size="small" defaultValue="STURLITE" />
-                                </div>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Maximum Referrals per Member</label>
-                                    <TextField fullWidth size="small" type="number" defaultValue={10} />
-                                </div>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Referral Validity (Days)</label>
-                                    <TextField fullWidth size="small" type="number" defaultValue={30} />
-                                </div>
-                            </Grid>
-                        </Grid>
+                        </Box>
 
-                        <Divider />
+                        <Divider sx={{ my: 4 }} />
 
-                        <Button variant="contained" className="bg-blue-600 hover:bg-blue-700 transform-none px-6">
-                            Save Configuration
-                        </Button>
+                        {/* Per-UserType Settings */}
+                        <Box>
+                            <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>Per-UserType Overrides</Typography>
+                            <FormControl fullWidth size="small" sx={{ mb: 4 }}>
+                                <InputLabel>Configure for User Type</InputLabel>
+                                <Select
+                                    value={selectedReferralUserType}
+                                    label="Configure for User Type"
+                                    onChange={(e) => handleReferralUserTypeChange(e.target.value as any)}
+                                    className="bg-white"
+                                >
+                                    <MenuItem value=""><em>Global Default (None Selected)</em></MenuItem>
+                                    {configData?.referralConfig?.userTypes?.map((ut: any) => (
+                                        <MenuItem key={ut.id} value={ut.id}>{ut.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {selectedReferralUserType !== '' && referralUserTypeFields && (
+                                <Grid container spacing={4} className="animate-in fade-in duration-300">
+                                    <Grid size={{ xs: 12 }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={referralUserTypeFields.isReferralEnabled}
+                                                    onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, isReferralEnabled: e.target.checked })}
+                                                    sx={{ '&.Mui-checked': { color: '#2563eb' } }}
+                                                />
+                                            }
+                                            label={<Typography fontWeight="500">Enable Referral for this User Type</Typography>}
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Referral Reward Points (to Referrer)</label>
+                                            <TextField
+                                                fullWidth size="small" type="number"
+                                                value={referralUserTypeFields.referralRewardPoints}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, referralRewardPoints: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Referee Reward Points (to New Member)</label>
+                                            <TextField
+                                                fullWidth size="small" type="number"
+                                                value={referralUserTypeFields.refereeRewardPoints}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, refereeRewardPoints: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Maximum Referrals allowed</label>
+                                            <TextField
+                                                fullWidth size="small" type="number"
+                                                value={referralUserTypeFields.maxReferrals}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, maxReferrals: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </Grid>
+                                </Grid>
+                            )}
+
+                            {selectedReferralUserType === '' && (
+                                <Box className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                    <Typography color="text.secondary">Select a User Type to configure specific rewards and limits. <br />Global settings at the top apply to all unless overridden.</Typography>
+                                </Box>
+                            )}
+                        </Box>
+
+                        <Divider sx={{ mt: 6 }} />
+
+                        <Box display="flex" justifyContent="flex-end" gap={2}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => {
+                                    setReferralGlobalFields(null);
+                                    handleReferralUserTypeChange(selectedReferralUserType);
+                                }}
+                                disabled={isSaving}
+                            >
+                                Reset Changes
+                            </Button>
+                            <Button
+                                variant="contained"
+                                className="bg-blue-600 hover:bg-blue-700 transform-none px-8"
+                                startIcon={isSaving ? <Save className="animate-spin" /> : <Save />}
+                                onClick={handleSaveReferralConfig}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? 'Saving...' : 'Save Configuration'}
+                            </Button>
+                        </Box>
                     </Box>
                 </div>
             )}

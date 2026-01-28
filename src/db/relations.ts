@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { users, auditLogs, counterSales, schemeTypes, campaigns, counterSalesLedger, earningTypes, counterSalesTransactionLogs, schemes, counterSalesTransactions, appConfigs, electricianLedger, electricianTransactionLogs, client, locationEntity, locationLevelMaster, locationEntityPincode, pincodeMaster, electricians, kycDocuments, electricianTransactions, otpMaster, skuEntity, participantSkuAccess, skuLevelMaster, notifications, qrCodes, qrTypes, retailerLedger, redemptions, redemptionChannels, redemptionStatuses, referrals, retailerTransactionLogs, retailers, retailerTransactions, skuPointConfig, skuVariant, userTypeEntity, tdsRecords, thirdPartyVerificationLogs, userAssociations, systemLogs, userScopeMapping, userTypeLevelMaster, approvalStatuses, languages, onboardingTypes, creativesTypes, creatives, eventMaster, eventLogs, ticketStatuses, tickets, ticketTypes, amazonMarketplaceProducts, userAmazonOrders, amazonOrderItems, amazonTickets, approvalAuditLogs, redemptionApprovals, physicalRewardsRedemptions, physicalRewardsCatalogue, redemptionThresholds, userAmazonCart, userAmazonWishlist, userApprovalRoles, approvalRoles, inappNotifications } from "./schema";
+import { users, auditLogs, counterSales, schemeTypes, campaigns, counterSalesLedger, earningTypes, counterSalesTransactionLogs, schemes, counterSalesTransactions, appConfigs, electricianLedger, electricianTransactionLogs, client, locationEntity, locationLevelMaster, locationEntityPincode, pincodeMaster, electricians, kycDocuments, electricianTransactions, notificationTemplates, eventMaster, otpMaster, skuEntity, participantSkuAccess, skuLevelMaster, notifications, qrCodes, qrTypes, retailerLedger, redemptions, redemptionChannels, redemptionStatuses, referrals, skuPointConfig, skuVariant, userTypeEntity, retailerTransactionLogs, retailers, retailerTransactions, tdsRecords, thirdPartyVerificationLogs, userAssociations, systemLogs, userScopeMapping, userTypeLevelMaster, approvalStatuses, languages, onboardingTypes, creativesTypes, creatives, eventLogs, ticketStatuses, tickets, ticketTypes, amazonMarketplaceProducts, userAmazonOrders, amazonOrderItems, amazonTickets, approvalAuditLogs, redemptionApprovals, physicalRewardsRedemptions, physicalRewardsCatalogue, redemptionThresholds, userAmazonCart, userAmazonWishlist, userApprovalRoles, approvalRoles, inappNotifications, notificationLogs, redemptionUpi, redemptionVouchers, thirdPartyApiLogs, redemptionBankTransfers } from "./schema";
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 	user: one(users, {
@@ -106,6 +106,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 		relationName: "userApprovalRoles_assignedBy_users_id"
 	}),
 	inappNotifications: many(inappNotifications),
+	notificationLogs: many(notificationLogs),
 }));
 
 export const counterSalesRelations = relations(counterSales, ({ one }) => ({
@@ -245,9 +246,9 @@ export const locationEntityRelations = relations(locationEntity, ({ one, many })
 export const clientRelations = relations(client, ({ many }) => ({
 	locationEntities: many(locationEntity),
 	locationLevelMasters: many(locationLevelMaster),
+	skuPointConfigs: many(skuPointConfig),
 	skuEntities: many(skuEntity),
 	skuLevelMasters: many(skuLevelMaster),
-	skuPointConfigs: many(skuPointConfig),
 }));
 
 export const locationLevelMasterRelations = relations(locationLevelMaster, ({ one, many }) => ({
@@ -300,6 +301,19 @@ export const electricianTransactionsRelations = relations(electricianTransaction
 		fields: [electricianTransactions.userId],
 		references: [users.id]
 	}),
+}));
+
+export const eventMasterRelations = relations(eventMaster, ({ one, many }) => ({
+	notificationTemplate: one(notificationTemplates, {
+		fields: [eventMaster.templateId],
+		references: [notificationTemplates.id]
+	}),
+	eventLogs: many(eventLogs),
+}));
+
+export const notificationTemplatesRelations = relations(notificationTemplates, ({ many }) => ({
+	eventMasters: many(eventMaster),
+	notificationLogs: many(notificationLogs),
 }));
 
 export const otpMasterRelations = relations(otpMaster, ({ one }) => ({
@@ -416,6 +430,10 @@ export const redemptionsRelations = relations(redemptions, ({ one, many }) => ({
 	}),
 	approvalAuditLogs: many(approvalAuditLogs),
 	redemptionApprovals: many(redemptionApprovals),
+	redemptionUpis: many(redemptionUpi),
+	redemptionVouchers: many(redemptionVouchers),
+	thirdPartyApiLogs: many(thirdPartyApiLogs),
+	redemptionBankTransfers: many(redemptionBankTransfers),
 }));
 
 export const redemptionChannelsRelations = relations(redemptionChannels, ({ many }) => ({
@@ -438,46 +456,6 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
 		relationName: "referrals_referrerId_users_id"
 	}),
 }));
-
-export const retailerTransactionLogsRelations = relations(retailerTransactionLogs, ({ one }) => ({
-	earningType: one(earningTypes, {
-		fields: [retailerTransactionLogs.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [retailerTransactionLogs.schemeId],
-		references: [schemes.id]
-	}),
-	user: one(users, {
-		fields: [retailerTransactionLogs.userId],
-		references: [users.id]
-	}),
-}));
-
-export const retailersRelations = relations(retailers, ({ one }) => ({
-	user: one(users, {
-		fields: [retailers.userId],
-		references: [users.id]
-	}),
-}));
-
-export const retailerTransactionsRelations = relations(retailerTransactions, ({ one }) => ({
-	earningType: one(earningTypes, {
-		fields: [retailerTransactions.earningType],
-		references: [earningTypes.id]
-	}),
-	scheme: one(schemes, {
-		fields: [retailerTransactions.schemeId],
-		references: [schemes.id]
-	}),
-	user: one(users, {
-		fields: [retailerTransactions.userId],
-		references: [users.id]
-	}),
-}));
-
-
-
 
 export const skuPointConfigRelations = relations(skuPointConfig, ({ one }) => ({
 	client: one(client, {
@@ -518,6 +496,43 @@ export const userTypeEntityRelations = relations(userTypeEntity, ({ one, many })
 		relationName: "userTypeEntity_parentTypeId_userTypeEntity_id"
 	}),
 	users: many(users),
+}));
+
+export const retailerTransactionLogsRelations = relations(retailerTransactionLogs, ({ one }) => ({
+	earningType: one(earningTypes, {
+		fields: [retailerTransactionLogs.earningType],
+		references: [earningTypes.id]
+	}),
+	scheme: one(schemes, {
+		fields: [retailerTransactionLogs.schemeId],
+		references: [schemes.id]
+	}),
+	user: one(users, {
+		fields: [retailerTransactionLogs.userId],
+		references: [users.id]
+	}),
+}));
+
+export const retailersRelations = relations(retailers, ({ one }) => ({
+	user: one(users, {
+		fields: [retailers.userId],
+		references: [users.id]
+	}),
+}));
+
+export const retailerTransactionsRelations = relations(retailerTransactions, ({ one }) => ({
+	earningType: one(earningTypes, {
+		fields: [retailerTransactions.earningType],
+		references: [earningTypes.id]
+	}),
+	scheme: one(schemes, {
+		fields: [retailerTransactions.schemeId],
+		references: [schemes.id]
+	}),
+	user: one(users, {
+		fields: [retailerTransactions.userId],
+		references: [users.id]
+	}),
 }));
 
 export const tdsRecordsRelations = relations(tdsRecords, ({ one }) => ({
@@ -609,10 +624,6 @@ export const eventLogsRelations = relations(eventLogs, ({ one }) => ({
 		fields: [eventLogs.userId],
 		references: [users.id]
 	}),
-}));
-
-export const eventMasterRelations = relations(eventMaster, ({ many }) => ({
-	eventLogs: many(eventLogs),
 }));
 
 export const ticketsRelations = relations(tickets, ({ one }) => ({
@@ -773,5 +784,44 @@ export const inappNotificationsRelations = relations(inappNotifications, ({ one 
 	user: one(users, {
 		fields: [inappNotifications.userId],
 		references: [users.id]
+	}),
+}));
+
+export const notificationLogsRelations = relations(notificationLogs, ({ one }) => ({
+	user: one(users, {
+		fields: [notificationLogs.userId],
+		references: [users.id]
+	}),
+	notificationTemplate: one(notificationTemplates, {
+		fields: [notificationLogs.templateId],
+		references: [notificationTemplates.id]
+	}),
+}));
+
+export const redemptionUpiRelations = relations(redemptionUpi, ({ one }) => ({
+	redemption: one(redemptions, {
+		fields: [redemptionUpi.redemptionId],
+		references: [redemptions.id]
+	}),
+}));
+
+export const redemptionVouchersRelations = relations(redemptionVouchers, ({ one }) => ({
+	redemption: one(redemptions, {
+		fields: [redemptionVouchers.redemptionId],
+		references: [redemptions.id]
+	}),
+}));
+
+export const thirdPartyApiLogsRelations = relations(thirdPartyApiLogs, ({ one }) => ({
+	redemption: one(redemptions, {
+		fields: [thirdPartyApiLogs.redemptionId],
+		references: [redemptions.id]
+	}),
+}));
+
+export const redemptionBankTransfersRelations = relations(redemptionBankTransfers, ({ one }) => ({
+	redemption: one(redemptions, {
+		fields: [redemptionBankTransfers.redemptionId],
+		references: [redemptions.id]
 	}),
 }));
