@@ -1,4 +1,6 @@
 import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getMastersDataAction } from '@/actions/masters-actions'
 import MastersClient from './MastersClient'
 
