@@ -55,7 +55,10 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Invalid credentials')
+        // If the server threw an error with a specific message, it might be in result.error or we might need to map codes
+        // For now, let's try to display the error directly if it's not the generic short code, or fallback
+        // In some versions, result.error is the message thrown in authorize
+        setError(result.error)
       } else {
         router.push('/dashboard')
       }
@@ -167,7 +170,7 @@ export default function LoginPage() {
                 )
               }}
             />
-            
+
             <Button
               type="submit"
               fullWidth
@@ -177,7 +180,7 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
-            
+
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 © 2023 Sturlite Loyalty Program. All rights reserved.<br />
