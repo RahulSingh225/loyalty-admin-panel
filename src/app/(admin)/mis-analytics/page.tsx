@@ -3,6 +3,8 @@ import {
   HydrationBoundary,
   QueryClient,
 } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getMisAnalyticsAction } from '@/actions/mis-actions'
 import MisClient from './MisClient'
 

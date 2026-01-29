@@ -1,4 +1,6 @@
 import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getCommunicationDataAction } from '@/actions/communication-actions'
 import CommunicationClient from './CommunicationClient'
 

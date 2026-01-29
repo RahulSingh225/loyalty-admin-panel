@@ -3,6 +3,8 @@ import {
   HydrationBoundary,
   QueryClient,
 } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getFinanceDataAction } from '@/actions/finance-actions'
 import FinanceClient from './FinanceClient'
 

@@ -1,4 +1,6 @@
 import { HydrationBoundary, dehydrate, QueryClient } from '@tanstack/react-query';
+
+export const dynamic = 'force-dynamic'
 import { getConfigurationAction } from '@/actions/configuration-actions';
 import ConfigurationClient from './ConfigurationClient';
 

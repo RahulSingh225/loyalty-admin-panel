@@ -3,6 +3,8 @@ import {
   HydrationBoundary,
   QueryClient,
 } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getDashboardDataAction } from '@/actions/dashboard-actions'
 import DashboardClient from './DashboardClient'
 

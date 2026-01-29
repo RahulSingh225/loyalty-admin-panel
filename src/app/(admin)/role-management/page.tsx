@@ -1,4 +1,6 @@
 import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getRoleDataAction } from '@/actions/role-actions'
 import RolesClient from './RolesClient'
 

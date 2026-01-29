@@ -3,6 +3,8 @@ import {
     HydrationBoundary,
     QueryClient,
 } from '@tanstack/react-query'
+
+export const dynamic = 'force-dynamic'
 import { getProcessDataAction } from "@/actions/process-actions";
 import ProcessClient from "./ProcessClient";
 
