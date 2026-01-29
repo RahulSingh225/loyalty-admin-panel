@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from "@/db"
-import { tickets, users, ticketTypes, ticketStatuses, electricians, retailers, counterSales, userTypeEntity } from "@/db/schema"
+import { tickets, users, ticketTypes, ticketStatuses, userTypeEntity, userTypeLevelMaster } from "@/db/schema"
 import { desc, eq, or, ilike, sql, and } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { revalidatePath } from "next/cache"
@@ -116,75 +116,48 @@ export async function searchUsersAction(searchTerm: string) {
     const normalizedSearch = (searchTerm || '').toLowerCase();
 
     try {
+        // Fetch the max level ID to exclude the last level (Member/Customer)
+        const levels = await db.select({ id: userTypeLevelMaster.id })
+            .from(userTypeLevelMaster)
+            .orderBy(desc(userTypeLevelMaster.id))
+            .limit(1);
+        const maxLevelId = levels[0]?.id;
         // Search in users table
         let usersQuery = db.select({
             id: users.id,
             name: users.name,
             phone: users.phone,
             roleId: users.roleId,
-            typeName: userTypeEntity.typeName
+            typeName: userTypeEntity.typeName,
+            levelId: userTypeEntity.levelId
         })
             .from(users)
             .leftJoin(userTypeEntity, eq(users.roleId, userTypeEntity.id))
             .$dynamic();
 
-        if (normalizedSearch.length >= 2) {
-            usersQuery = usersQuery.where(
-                or(
-                    ilike(users.name, `%${normalizedSearch}%`),
-                    ilike(users.phone, `%${normalizedSearch}%`)
-                )
-            );
-        }
-        const usersList = await usersQuery.limit(10);
-
-        // Specific tables search
-        let electricsQuery = db.select({ id: electricians.userId, uniqueId: electricians.uniqueId, name: electricians.name, phone: electricians.phone })
-            .from(electricians)
-            .$dynamic();
+        const conditions = [];
 
         if (normalizedSearch.length >= 2) {
-            electricsQuery = electricsQuery.where(or(ilike(electricians.uniqueId, `%${normalizedSearch}%`), ilike(electricians.name, `%${normalizedSearch}%`), ilike(electricians.phone, `%${normalizedSearch}%`)));
+            conditions.push(or(
+                ilike(users.name, `%${normalizedSearch}%`),
+                ilike(users.phone, `%${normalizedSearch}%`)
+            ));
         }
-        const electrics = await electricsQuery.limit(5);
 
-        let retsQuery = db.select({ id: retailers.userId, uniqueId: retailers.uniqueId, name: retailers.name, phone: retailers.phone })
-            .from(retailers)
-            .$dynamic();
-
-        if (normalizedSearch.length >= 2) {
-            retsQuery = retsQuery.where(or(ilike(retailers.uniqueId, `%${normalizedSearch}%`), ilike(retailers.name, `%${normalizedSearch}%`), ilike(retailers.phone, `%${normalizedSearch}%`)));
+        if (conditions.length > 0) {
+            usersQuery = usersQuery.where(and(...conditions));
         }
-        const rets = await retsQuery.limit(5);
 
-        // Combine and use the typeName from users table
-        const combined: any[] = [];
+        const usersList = await usersQuery.limit(20);
 
-        // Add specific members with their uniqueIds
-        electrics.forEach(e => {
-            const user = usersList.find(u => u.id === e.id);
-            combined.push({
-                ...e,
-                type: user?.typeName || 'Electrician'
-            });
-        });
-
-        rets.forEach(r => {
-            const user = usersList.find(u => u.id === r.id);
-            combined.push({
-                ...r,
-                type: user?.typeName || 'Retailer'
-            });
-        });
-
-        // Add remaining users
-        usersList.forEach(u => {
-            if (!combined.find(c => c.id === u.id)) {
-                combined.push({ id: u.id, uniqueId: 'N/A', name: u.name || 'Unknown', phone: u.phone, type: u.typeName || 'Staff/User' });
-            }
-        });
-
-        return combined;
+        return usersList.map(u => ({
+            id: u.id,
+            uniqueId: 'N/A',
+            name: u.name || 'Unknown',
+            phone: u.phone,
+            type: u.typeName || 'Staff/User',
+            isLastLevel: u.levelId === maxLevelId
+        }));
     } catch (error) {
         console.error("Error searching users:", error);
         return [];

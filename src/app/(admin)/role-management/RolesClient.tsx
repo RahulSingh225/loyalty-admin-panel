@@ -134,8 +134,8 @@ export default function RolesClient() {
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={tabValue} onChange={handleTabChange} aria-label="role management tabs">
                     <Tab label="Users" {...a11yProps(0)} />
-                    <Tab label="Roles" {...a11yProps(1)} />
-                    <Tab label="Access Logs" {...a11yProps(2)} />
+                    {/* <Tab label="Roles" {...a11yProps(1)} /> */}
+                    <Tab label="Access Logs" {...a11yProps(1)} />
                 </Tabs>
             </Box>
 
@@ -389,7 +389,7 @@ export default function RolesClient() {
                 </Card>
             </TabPanel>
 
-            <TabPanel value={tabValue} index={1}>
+            <TabPanel value={tabValue} index={2}>
                 {/* Roles Tab Content */}
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 4 }}>
@@ -492,7 +492,7 @@ export default function RolesClient() {
                 )}
             </TabPanel>
 
-            <TabPanel value={tabValue} index={2}>
+            <TabPanel value={tabValue} index={1}>
                 {/* Access Logs Tab Content */}
                 <Card>
                     <CardContent>

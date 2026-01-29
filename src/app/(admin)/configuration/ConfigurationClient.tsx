@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getConfigurationAction } from '@/actions/configuration-actions';
 import {
+    getConfigurationAction,
+    saveCreativeAction,
+    deleteCreativeAction,
     updateReferralGlobalConfigAction,
     updateUserTypeReferralConfigAction
-} from '@/actions/referral-actions';
+} from '@/actions/configuration-actions';
+import { uploadFileAction } from '@/actions/file-actions';
 import {
     Box,
     Typography,
@@ -33,7 +36,12 @@ import {
     ListItemIcon,
     ListItemSecondaryAction,
     Avatar,
-    Chip
+    Chip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    CircularProgress
 } from '@mui/material';
 import {
     Save,
@@ -57,6 +65,7 @@ import {
     Search,
     FilterList,
     Download,
+    CloudUpload,
     MoreVert
 } from '@mui/icons-material';
 
@@ -103,11 +112,11 @@ export default function ConfigurationClient() {
     const [referralUserTypeFields, setReferralUserTypeFields] = useState<any>(null);
 
     // Initial load of fields when configData arrives
-    useState(() => {
-        if (configData?.referralConfig?.global) {
+    useEffect(() => {
+        if (configData?.referralConfig?.global && !referralGlobalFields) {
             setReferralGlobalFields(configData.referralConfig.global);
         }
-    });
+    }, [configData, referralGlobalFields]);
 
     const handleReferralUserTypeChange = (userTypeId: number | '') => {
         setSelectedReferralUserType(userTypeId);
@@ -120,14 +129,20 @@ export default function ConfigurationClient() {
                     isReferralEnabled: utConfig.isReferralEnabled,
                     referralRewardPoints: utConfig.referralRewardPoints,
                     refereeRewardPoints: utConfig.refereeRewardPoints,
-                    maxReferrals: utConfig.maxReferrals
+                    maxReferrals: utConfig.maxReferrals,
+                    referralCodePrefix: utConfig.referralCodePrefix || "",
+                    referralValidityDays: utConfig.referralValidityDays || 30,
+                    referralSuccessMessage: utConfig.referralSuccessMessage || ""
                 });
             } else {
                 setReferralUserTypeFields({
                     isReferralEnabled: true,
                     referralRewardPoints: 0,
                     refereeRewardPoints: 0,
-                    maxReferrals: 10
+                    maxReferrals: 10,
+                    referralCodePrefix: "",
+                    referralValidityDays: 30,
+                    referralSuccessMessage: ""
                 });
             }
         }
@@ -153,6 +168,102 @@ export default function ConfigurationClient() {
             alert('Failed to save configuration.');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    // States for Creatives Modal
+    const [isCreativeModalOpen, setIsCreativeModalOpen] = useState(false);
+    const [currentCreative, setCurrentCreative] = useState<any>(null);
+    const [creativeForm, setCreativeForm] = useState({
+        id: undefined,
+        typeId: 0,
+        title: '',
+        url: '',
+        previewUrl: '',
+        carouselName: '',
+        displayOrder: 0,
+        description: ''
+    });
+
+    const creativeSaveMutation = useMutation({
+        mutationFn: saveCreativeAction,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['configuration'] });
+            setIsCreativeModalOpen(false);
+        }
+    });
+
+    const creativeDeleteMutation = useMutation({
+        mutationFn: deleteCreativeAction,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['configuration'] });
+        }
+    });
+
+    const handleOpenCreativeModal = (typeId: number, creative?: any) => {
+        if (creative) {
+            setCreativeForm({
+                id: creative.id,
+                typeId: creative.typeId,
+                title: creative.title,
+                url: creative.url,
+                previewUrl: creative.previewUrl || creative.url,
+                carouselName: creative.carouselName,
+                displayOrder: creative.displayOrder || 0,
+                description: creative.description || ''
+            });
+        } else {
+            setCreativeForm({
+                id: undefined,
+                typeId: typeId,
+                title: '',
+                url: '',
+                previewUrl: '',
+                carouselName: '',
+                displayOrder: 0,
+                description: ''
+            });
+        }
+        setIsCreativeModalOpen(true);
+    };
+
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', 'creatives');
+
+            const result = await uploadFileAction(formData);
+            if (result.success && result.url) {
+                setCreativeForm({ ...creativeForm, url: result.url, previewUrl: result.url });
+            } else {
+                alert(result.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert('Upload failed');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleSaveCreative = async () => {
+        if (!creativeForm.title || !creativeForm.url || !creativeForm.carouselName) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        creativeSaveMutation.mutate(creativeForm);
+    };
+
+    const handleDeleteCreative = async (id: number) => {
+        if (confirm('Are you sure you want to delete this item?')) {
+            creativeDeleteMutation.mutate(id);
         }
     };
 
@@ -329,7 +440,15 @@ export default function ConfigurationClient() {
                             <div className="widget-card rounded-xl shadow p-6 h-full">
                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                                     <h3 className="text-lg font-semibold text-primary">{type.name} Management</h3>
-                                    <Button startIcon={<Add />} variant="contained" size="small" className="bg-blue-600">Upload</Button>
+                                    <Button
+                                        startIcon={<Add />}
+                                        variant="contained"
+                                        size="small"
+                                        className="bg-blue-600 transform-none"
+                                        onClick={() => handleOpenCreativeModal(type.id)}
+                                    >
+                                        Add New
+                                    </Button>
                                 </Box>
 
                                 <div className="space-y-4">
@@ -337,16 +456,39 @@ export default function ConfigurationClient() {
                                         ?.filter((c: any) => c.typeId === type.id)
                                         .map((creative: any) => (
                                             <div key={creative.id} className="flex items-center p-3 bg-gray-50 rounded-lg hover:shadow-sm">
-                                                <div className={`flex-shrink-0 w-16 h-16 ${getIconBgColor(type.name)} rounded-lg flex items-center justify-center`}>
-                                                    {getCreativeIcon(type.name)}
+                                                <div className={`flex-shrink-0 w-16 h-16 ${getIconBgColor(type.name)} rounded-lg flex items-center justify-center overflow-hidden border`}>
+                                                    {creative.previewUrl ? (
+                                                        <img src={creative.previewUrl} alt={creative.title} className="w-full h-full object-cover" />
+                                                    ) : creative.previewUrl && type.name.toLowerCase().includes('video') ? (
+                                                        <div className="relative w-full h-full flex items-center justify-center">
+                                                            <VideoLibrary className="text-purple-600 opacity-50" />
+                                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                                                <Visibility className="text-white text-sm" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        getCreativeIcon(type.name)
+                                                    )}
                                                 </div>
                                                 <div className="ml-4 flex-1">
                                                     <Typography variant="body1" fontWeight="600">{creative.title}</Typography>
                                                     <Typography variant="body2" color="text.secondary">{creative.carouselName}</Typography>
                                                 </div>
                                                 <Box display="flex" gap={1}>
-                                                    <IconButton size="small" sx={{ color: '#2563eb' }}><Edit fontSize="small" /></IconButton>
-                                                    <IconButton size="small" sx={{ color: '#dc2626' }}><Delete fontSize="small" /></IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        sx={{ color: '#2563eb' }}
+                                                        onClick={() => handleOpenCreativeModal(type.id, creative)}
+                                                    >
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        sx={{ color: '#dc2626' }}
+                                                        onClick={() => handleDeleteCreative(creative.id)}
+                                                    >
+                                                        <Delete fontSize="small" />
+                                                    </IconButton>
                                                 </Box>
                                             </div>
                                         ))}
@@ -499,6 +641,38 @@ export default function ConfigurationClient() {
                                                 fullWidth size="small" type="number"
                                                 value={referralUserTypeFields.maxReferrals}
                                                 onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, maxReferrals: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Referral Code Prefix (Override)</label>
+                                            <TextField
+                                                fullWidth size="small"
+                                                value={referralUserTypeFields.referralCodePrefix}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, referralCodePrefix: e.target.value })}
+                                                placeholder="Leave empty to use global"
+                                            />
+                                        </div>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Referral Validity (Days Override)</label>
+                                            <TextField
+                                                fullWidth size="small" type="number"
+                                                value={referralUserTypeFields.referralValidityDays}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, referralValidityDays: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </Grid>
+                                    <Grid size={{ xs: 12 }}>
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium text-gray-700">Success Message (Override)</label>
+                                            <TextField
+                                                fullWidth size="small" multiline rows={2}
+                                                value={referralUserTypeFields.referralSuccessMessage}
+                                                onChange={(e) => setReferralUserTypeFields({ ...referralUserTypeFields, referralSuccessMessage: e.target.value })}
+                                                placeholder="Leave empty to use global"
                                             />
                                         </div>
                                     </Grid>
@@ -661,6 +835,116 @@ export default function ConfigurationClient() {
                     </Grid>
                 </Grid>
             )}
+            {/* Creative Management Dialog */}
+            <Dialog
+                open={isCreativeModalOpen}
+                onClose={() => setIsCreativeModalOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle className="border-b">
+                    {creativeForm.id ? 'Edit' : 'Add New'} {configData?.creativeTypes?.find((t: any) => t.id === creativeForm.typeId)?.name || 'Creative'}
+                </DialogTitle>
+                <DialogContent sx={{ py: 3 }}>
+                    <Box className="space-y-4 pt-2">
+                        <TextField
+                            fullWidth
+                            label="Title"
+                            size="small"
+                            required
+                            value={creativeForm.title}
+                            onChange={(e) => setCreativeForm({ ...creativeForm, title: e.target.value })}
+                        />
+                        <TextField
+                            fullWidth
+                            label="Carousel Name / Section"
+                            size="small"
+                            placeholder="e.g. Home Page Main"
+                            required
+                            value={creativeForm.carouselName}
+                            onChange={(e) => setCreativeForm({ ...creativeForm, carouselName: e.target.value })}
+                        />
+                        {creativeForm.previewUrl && (
+                            <Box className="w-full h-40 bg-gray-100 rounded-lg overflow-hidden border mb-4 flex items-center justify-center">
+                                {configData?.creativeTypes?.find((t: any) => t.id === creativeForm.typeId)?.name?.toLowerCase().includes('video') ? (
+                                    <div className="flex flex-col items-center">
+                                        <VideoLibrary className="text-4xl text-purple-600 mb-2" />
+                                        <Typography variant="caption">Video Resource Linked</Typography>
+                                    </div>
+                                ) : (
+                                    <img src={creativeForm.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                )}
+                            </Box>
+                        )}
+                        <Box>
+                            <Typography variant="caption" fontWeight="600" color="text.secondary" mb={1} display="block">
+                                Resource Artifact *
+                            </Typography>
+                            <Box display="flex" gap={2} alignItems="center">
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    required
+                                    value={creativeForm.url}
+                                    onChange={(e) => setCreativeForm({ ...creativeForm, url: e.target.value })}
+                                    placeholder="https://example.com/image.jpg"
+                                    helperText="Upload a file or paste a direct URL"
+                                />
+                                <Button
+                                    component="label"
+                                    variant="outlined"
+                                    startIcon={isUploading ? <CircularProgress size={20} /> : <CloudUpload />}
+                                    disabled={isUploading}
+                                    sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                                >
+                                    {isUploading ? 'Uploading...' : 'Upload'}
+                                    <input
+                                        type="file"
+                                        hidden
+                                        accept="image/*,video/*"
+                                        onChange={handleFileUpload}
+                                    />
+                                </Button>
+                            </Box>
+                        </Box>
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 6 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Display Order"
+                                    size="small"
+                                    type="number"
+                                    value={creativeForm.displayOrder}
+                                    onChange={(e) => setCreativeForm({ ...creativeForm, displayOrder: parseInt(e.target.value) || 0 })}
+                                />
+                            </Grid>
+                        </Grid>
+                        <TextField
+                            fullWidth
+                            label="Description"
+                            size="small"
+                            multiline
+                            rows={3}
+                            value={creativeForm.description}
+                            onChange={(e) => setCreativeForm({ ...creativeForm, description: e.target.value })}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions className="bg-gray-50 p-4 border-t">
+                    <Button onClick={() => setIsCreativeModalOpen(false)} sx={{ textTransform: 'none' }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        className="bg-blue-600 hover:bg-blue-700 px-6 transform-none"
+                        onClick={handleSaveCreative}
+                        disabled={creativeSaveMutation.isPending}
+                        startIcon={creativeSaveMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                    >
+                        {creativeSaveMutation.isPending ? 'Saving...' : (creativeForm.id ? 'Update' : 'Create')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

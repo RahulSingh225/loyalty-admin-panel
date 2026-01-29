@@ -13,6 +13,7 @@ import {
     kycDocuments
 } from "@/db/schema"
 import { desc, eq, and, sql, ilike, count, or } from "drizzle-orm"
+import { BUS_EVENTS, emitEvent } from "@/server/rabbitMq/broker"
 
 export interface MemberBase {
     id: string;
@@ -233,6 +234,14 @@ export async function updateKycDocumentStatusAction(documentId: number, status: 
             })
             .where(eq(kycDocuments.id, documentId));
 
+        await emitEvent(status === 'verified' ? BUS_EVENTS.USER_KYC_APPROVED : BUS_EVENTS.USER_KYC_REJECT, {
+
+            status: status,
+            rejectionReason: rejectionReason || null,
+            verifiedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        })
+
         return { success: true };
     } catch (error) {
         console.error("Error in updateKycDocumentStatusAction:", error);
@@ -358,6 +367,48 @@ export async function updateMemberApprovalStatusAction(userId: number, statusId:
             })
             .where(eq(users.id, userId));
 
+        const [status] = await db.select().from(approvalStatuses).where(eq(approvalStatuses.id, statusId));
+
+        switch (status.name) {
+            case "SCAN_BLOCKED":
+                await emitEvent(BUS_EVENTS.USER_SCAN_BLOCK, {
+                    entityId: userId.toString(),
+                    statusId: statusId,
+                    updatedAt: new Date().toISOString()
+                })
+                break;
+            case "REDEMPTION_BLOCKED":
+                await emitEvent(BUS_EVENTS.USER_REDEMPTION_BLOCK, {
+                    entityId: userId.toString(),
+                    statusId: statusId,
+                    updatedAt: new Date().toISOString()
+                })
+                break;
+            case "BLOCKED":
+                await emitEvent(BUS_EVENTS.USER_BLOCK, {
+                    entityId: userId.toString(),
+                    statusId: statusId,
+                    updatedAt: new Date().toISOString()
+                })
+                break;
+            case "DELETE":
+                await emitEvent(BUS_EVENTS.USER_BLOCK, {
+                    entityId: userId.toString(),
+                    statusId: statusId,
+                    updatedAt: new Date().toISOString()
+                })
+                break;
+            case "INACTIVE":
+                await emitEvent(BUS_EVENTS.USER_BLOCK, {
+                    entityId: userId.toString(),
+                    statusId: statusId,
+                    updatedAt: new Date().toISOString()
+                })
+                break;
+            default:
+                break;
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Error in updateMemberApprovalStatusAction:", error);
@@ -399,6 +450,12 @@ export async function updateMemberDetailsAction(userId: number, type: string, da
                 })
                 .where(eq(counterSales.userId, userId));
         }
+
+        await emitEvent(BUS_EVENTS.PROFILE_UPDATE, {
+            entityId: userId.toString(),
+            updatedAt: new Date().toISOString(),
+            metadata: data
+        })
 
         return { success: true };
 

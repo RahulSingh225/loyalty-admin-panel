@@ -2,6 +2,7 @@
 
 import { db } from '@/db';
 import { userTypeEntity, skuPointConfig, skuPointRules, skuVariant, skuEntity, skuLevelMaster, redemptionChannels, retailerTransactions, electricianTransactions, counterSalesTransactions } from '@/db/schema';
+import { emitEvent, BUS_EVENTS } from '@/server/rabbitMq/broker';
 import { eq, desc, sql as sqlTag } from 'drizzle-orm';
 
 export interface StakeholderType {
@@ -249,7 +250,13 @@ export async function updateStakeholderConfigAction(data: {
                 allowedRedemptionChannels: data.allowedRedemptionChannels
             })
             .where(eq(userTypeEntity.id, data.id));
+
+        await emitEvent(BUS_EVENTS.MEMBER_MASTER_CONFIG_UPDATE, {
+            entityId: data.id.toString(),
+            metadata: data
+        });
         return { success: true };
+
     } catch (error) {
         console.error("Error updating stakeholder config:", error);
         return { success: false, error: "Failed to update configuration" };
@@ -286,8 +293,13 @@ export async function upsertPointsMatrixRuleAction(data: {
                     validTo: data.validTo ? new Date(data.validTo).toISOString() : null
                 })
                 .where(eq(skuPointRules.id, data.id));
+
+            await emitEvent(BUS_EVENTS.SKU_RULE_MODIFY, {
+                entityId: data.id.toString(),
+                metadata: data
+            });
         } else {
-            await db.insert(skuPointRules).values({
+            const result = await db.insert(skuPointRules).values({
                 name: data.name,
                 clientId: data.clientId,
                 userTypeId: data.userTypeId,
@@ -299,6 +311,11 @@ export async function upsertPointsMatrixRuleAction(data: {
                 isActive: data.isActive,
                 validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
                 validTo: data.validTo ? new Date(data.validTo).toISOString() : null
+            }).returning();
+
+            await emitEvent(BUS_EVENTS.SKU_RULE_MODIFY, {
+                entityId: result[0].id.toString(),
+                metadata: data
             });
         }
         return { success: true };
@@ -334,11 +351,16 @@ export async function upsertSkuPointConfigAction(data: {
                     isActive: data.isActive,
                 })
                 .where(eq(skuPointConfig.id, data.id));
+
+            await emitEvent(BUS_EVENTS.SKU_POINT_CHANGE, {
+                entityId: data.id.toString(),
+                metadata: data
+            });
         } else {
             if (!data.userTypeId || !data.skuVariantId) {
                 return { success: false, error: "User Type and SKU Variant are required." };
             }
-            await db.insert(skuPointConfig).values({
+            const result = await db.insert(skuPointConfig).values({
                 clientId: data.clientId,
                 userTypeId: data.userTypeId,
                 skuVariantId: data.skuVariantId,
@@ -347,6 +369,11 @@ export async function upsertSkuPointConfigAction(data: {
                 validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
                 validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
                 isActive: data.isActive,
+            }).returning();
+
+            await emitEvent(BUS_EVENTS.SKU_POINT_CHANGE, {
+                entityId: result[0].id.toString(),
+                metadata: data
             });
         }
         return { success: true };
@@ -400,6 +427,11 @@ export async function updateSkuPointConfigForEntityAction(data: {
                 validTo: data.validTo ? new Date(data.validTo).toUTCString() : null,
                 isActive: data.isActive
             }).where(eq(skuPointConfig.id, cfg.id));
+
+            await emitEvent(BUS_EVENTS.SKU_POINT_CHANGE, {
+                entityId: cfg.id.toString(),
+                metadata: data
+            });
         }
 
         return { success: true, updated: configsToUpdate.length };
@@ -411,7 +443,13 @@ export async function updateSkuPointConfigForEntityAction(data: {
 
 export async function deletePointsMatrixRuleAction(id: number) {
     try {
-        await db.delete(skuPointRules).where(eq(skuPointRules.id, id));
+        await db.update(skuPointRules).set({
+            isActive: false
+        }).where(eq(skuPointRules.id, id));
+        await emitEvent(BUS_EVENTS.SKU_RULE_MODIFY, {
+            entityId: id.toString(),
+            metadata: { id }
+        });
         return { success: true };
     } catch (error) {
         console.error("Error deleting points matrix rule:", error);

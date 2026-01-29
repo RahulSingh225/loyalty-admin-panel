@@ -19,6 +19,9 @@ export const getFileUrl = (type: string) => {
     case "profile-photo":
       finalUrl = `img/profile-photo/`;
       break;
+    case "creatives":
+      finalUrl = `img/creatives/`;
+      break;
   }
   return finalUrl;
 };

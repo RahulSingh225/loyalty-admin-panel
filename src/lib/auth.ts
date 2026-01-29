@@ -106,5 +106,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
     })
-  ]
+  ],
+  pages: {
+    signIn: "/login",
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = user.role
+        token.department = user.department
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string
+        session.user.role = token.role as string
+        session.user.department = token.department as string
+      }
+      return session
+    }
+  },
+  session: {
+    strategy: "jwt"
+  },
+  events: {
+    async signIn({ user }) {
+      try {
+        const { emitEvent, BUS_EVENTS } = await import("@/server/rabbitMq/broker");
+        await emitEvent(BUS_EVENTS.ADMIN_LOGIN, {
+          userId: Number(user.id),
+          action: 'login',
+          eventType: 'admin.login',
+          entityId: user.id?.toString(),
+          metadata: {
+            email: user.email,
+            name: user.name,
+            role: user.role
+          }
+        });
+      } catch (error) {
+        console.error("Failed to emit login event:", error);
+      }
+    }
+  }
 })

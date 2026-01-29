@@ -5,6 +5,7 @@ import { RabbitMQConnector } from './rabbitmQConnecter';
 import { db } from "@/db";
 import { eventLogs, eventMaster } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 // Your single registry for all 25+ events
 export const BUS_EVENTS = {
@@ -50,12 +51,14 @@ export const BUS_EVENTS = {
   SKU_POINT_CHANGE: 'sku.points.changed',
   SKU_RULE_MODIFY: 'sku.rule.modified',
   LOCATION_LEVEL_CHANGED: 'location.level.changed',
+  MEMBER_MASTER_CONFIG_UPDATE: 'member.master.config.updated',
 
   // Compliance / Consent
   TDS_CONSENT: 'tds.consent.updated',
 } as const;
 
 export type BusEvent = typeof BUS_EVENTS[keyof typeof BUS_EVENTS];
+export type BusEventKey = keyof typeof BUS_EVENTS;
 
 
 let connector: BaseMQConnector | null = null;
@@ -84,18 +87,48 @@ export interface EventLogPayload {
   eventType?: string;
 }
 
-const PUBLISHABLE_EVENTS = new Set<string>(Object.values(BUS_EVENTS));
+const PUBLISHABLE_EVENTS = new Set<string>(Object.keys(BUS_EVENTS));
+
+// Reverse mapping to find KEY from VALUE (topic)
+const TOPIC_TO_KEY_MAP = Object.fromEntries(
+  Object.entries(BUS_EVENTS).map(([key, value]) => [value, key])
+) as Record<string, BusEventKey>;
 
 /**
  * Centrally log an event into 'event_logs' and conditionally publish it to RabbitMQ.
  * All events are persisted for auditing, but only those in BUS_EVENTS are broadcasted.
  */
 export async function emitEvent(
-  eventKey: string,
+  eventInput: BusEventKey | BusEvent,
   payload: EventLogPayload & { [key: string]: any }
 ) {
   try {
-    // 1. Find event in master to get ID
+    let eventKey: BusEventKey;
+    let topic: string;
+
+    // 1. Resolve Key and Topic
+    if (eventInput in BUS_EVENTS) {
+      // Input is a key (e.g., 'ADMIN_LOGIN')
+      eventKey = eventInput as BusEventKey;
+      topic = BUS_EVENTS[eventKey];
+    } else {
+      // Input is a value/topic (e.g., 'admin.login')
+      topic = eventInput as string;
+      eventKey = TOPIC_TO_KEY_MAP[topic] || (topic as BusEventKey);
+    }
+
+    // Automatically capture userId from session if not provided
+
+    const session = await auth();
+    if (session?.user?.id) {
+      payload.userId = Number(session.user.id);
+    }
+
+
+    // Auto-generate correlationId if missing
+    const correlationId = payload.correlationId || crypto.randomUUID();
+
+    // 2. Find event in master to get ID (Always via the KEY)
     const [masterDef] = await db
       .select()
       .from(eventMaster)
@@ -103,14 +136,14 @@ export async function emitEvent(
       .limit(1);
 
     if (masterDef) {
-      // 2. Persist to event_logs (Always do this)
+      // 3. Persist to event_logs
       await db.insert(eventLogs).values({
         userId: payload.userId || null,
         eventId: masterDef.id,
         action: payload.action || eventKey,
         eventType: payload.eventType || masterDef.category || 'system',
         entityId: payload.entityId || null,
-        correlationId: payload.correlationId || null,
+        correlationId: correlationId,
         metadata: payload.metadata || payload,
         ipAddress: payload.ipAddress || null,
         userAgent: payload.userAgent || null,
@@ -119,19 +152,22 @@ export async function emitEvent(
       console.warn(`[EventLogger] Event key '${eventKey}' not found in event_master. DB logging skipped.`);
     }
 
-    // 3. Conditionally Publish to MQ
+    // 4. Conditionally Publish to MQ
     if (PUBLISHABLE_EVENTS.has(eventKey)) {
-      await publish(eventKey, {
+      await publish(topic, {
         ...payload,
+        userId: payload.userId,
+        correlationId: correlationId,
         eventKey,
+        topic,
         timestamp: new Date().toISOString(),
       });
-      console.log(`[EventLogger] Successfully emitted and published: ${eventKey}`);
+      console.log(`[EventLogger] Successfully emitted and published: ${eventKey} (${topic})`);
     } else {
       console.log(`[EventLogger] Successfully logged (not publishable): ${eventKey}`);
     }
 
   } catch (error) {
-    console.error(`[EventLogger] Failed to handle event '${eventKey}':`, error);
+    console.error(`[EventLogger] Failed to handle event '${eventInput}':`, error);
   }
 }

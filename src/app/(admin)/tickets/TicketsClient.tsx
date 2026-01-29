@@ -49,15 +49,8 @@ export default function TicketsClient() {
     }, [searchTerm])
 
     const currentStatusId = React.useMemo(() => {
-        if (activeTab === 0) return undefined
-        const statusMap: Record<number, string> = {
-            1: 'Open',
-            2: 'In Progress',
-            3: 'Resolved',
-            4: 'Closed'
-        }
-        const name = statusMap[activeTab]
-        return ticketStatuses?.find((s: any) => s.name === name)?.id
+        if (activeTab === 0 || !ticketStatuses.length) return undefined
+        return ticketStatuses[activeTab - 1]?.id
     }, [activeTab, ticketStatuses])
 
     const { data: tickets = [], isLoading, error } = useQuery({
@@ -252,10 +245,9 @@ export default function TicketsClient() {
                     sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 500, minWidth: 'auto' } }}
                 >
                     <Tab label="All Tickets" />
-                    <Tab label="Open" />
-                    <Tab label="In Progress" />
-                    <Tab label="Resolved" />
-                    <Tab label="Closed" />
+                    {ticketStatuses.map((status: any) => (
+                        <Tab key={status.id} label={status.name} />
+                    ))}
                 </Tabs>
             </Box>
 
@@ -280,7 +272,7 @@ export default function TicketsClient() {
                                 <i className="fas fa-exclamation-circle text-orange-500"></i>
                             </Box>
                             <Typography variant="h4" fontWeight="bold" mb={1}>
-                                {tickets.filter((t: any) => (t.status?.name || t.status) === 'Open').length}
+                                {tickets.filter((t: any) => (t.statusName || t.status) === 'Open').length}
                             </Typography>
                             <Box display="flex" alignItems="center" fontSize="0.875rem">
                                 <span className="text-gray-500">requiring attention</span>
@@ -294,7 +286,7 @@ export default function TicketsClient() {
                                 <i className="fas fa-spinner text-blue-500"></i>
                             </Box>
                             <Typography variant="h4" fontWeight="bold" mb={1}>
-                                {tickets.filter((t: any) => (t.status?.name || t.status) === 'In Progress').length}
+                                {tickets.filter((t: any) => (t.statusName || t.status) === 'In Progress').length}
                             </Typography>
                             <Box display="flex" alignItems="center" fontSize="0.875rem">
                                 <span className="text-gray-500">being worked on</span>
@@ -308,7 +300,7 @@ export default function TicketsClient() {
                                 <i className="fas fa-check-circle text-green-500"></i>
                             </Box>
                             <Typography variant="h4" fontWeight="bold" mb={1}>
-                                {tickets.filter((t: any) => (t.status?.name || t.status) === 'Resolved').length}
+                                {tickets.filter((t: any) => (t.statusName || t.status) === 'Resolved').length}
                             </Typography>
                             <Box display="flex" alignItems="center" fontSize="0.875rem">
                                 <span className="text-gray-500">completed</span>
@@ -516,7 +508,7 @@ export default function TicketsClient() {
                                     </Typography>
                                     <Autocomplete
                                         size="small"
-                                        options={searchResults}
+                                        options={searchResults.filter((u: any) => u.isLastLevel)}
                                         value={formData.requester}
                                         getOptionLabel={(option: any) => `${option.name} (${option.type})`}
                                         isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -550,7 +542,7 @@ export default function TicketsClient() {
                                     </Typography>
                                     <Autocomplete
                                         size="small"
-                                        options={searchResults.filter((u: any) => u.type === 'Staff/User' || u.type === 'Admin')}
+                                        options={searchResults.filter((u: any) => !u.isLastLevel)}
                                         value={formData.assignee}
                                         getOptionLabel={(option: any) => `${option.name} (${option.type})`}
                                         isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -705,7 +697,7 @@ export default function TicketsClient() {
                         <Typography variant="caption" fontWeight="600" color="text.secondary" mb={1} display="block">Assign To</Typography>
                         <Autocomplete
                             size="small"
-                            options={searchResults.filter((u: any) => u.type === 'Staff/User' || u.type === 'Admin')}
+                            options={searchResults.filter((u: any) => !u.isLastLevel)}
                             value={selectedAssignee}
                             getOptionLabel={(option: any) => `${option.name} (${option.type})`}
                             isOptionEqualToValue={(option, value) => option.id === value.id}

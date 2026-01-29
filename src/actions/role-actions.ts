@@ -164,8 +164,8 @@ const accessLogsData: AccessLog[] = [
 ];
 
 import { db } from "@/db";
-import { users, userTypeEntity, approvalStatuses } from "@/db/schema";
-import { eq, and, count, or, ilike, sql } from "drizzle-orm";
+import { users, userTypeEntity, approvalStatuses, eventLogs, eventMaster } from "@/db/schema";
+import { eq, and, count, or, ilike, sql, desc } from "drizzle-orm";
 
 export interface UserFilters {
     searchTerm?: string;
@@ -249,10 +249,55 @@ export async function getRoleDataAction(filters?: UserFilters) {
             };
         });
 
+        // Fetch Access Logs (Filtered by specific event keys)
+        const dbLogs = await db.select({
+            id: eventLogs.id,
+            userName: users.name,
+            action: eventLogs.action,
+            eventType: eventLogs.eventType,
+            ipAddress: eventLogs.ipAddress,
+            createdAt: eventLogs.createdAt,
+            eventKey: eventMaster.eventKey,
+            category: eventMaster.category
+        })
+            .from(eventLogs)
+            .innerJoin(eventMaster, eq(eventLogs.eventId, eventMaster.id))
+            .leftJoin(users, eq(eventLogs.userId, users.id))
+            .where(or(
+                eq(eventMaster.eventKey, 'QR_BATCH_CREATED'),
+                eq(eventMaster.eventKey, 'ADMIN_LOGIN')
+            ))
+            .orderBy(desc(eventLogs.id))
+            .limit(50);
+
+        const formattedLogs: AccessLog[] = dbLogs.map(log => {
+            const initials = log.userName ? log.userName.split(' ').map(n => n[0]).join('').toUpperCase() : 'SY';
+            const colors = ['#3f51b5', '#673ab7', '#4caf50', '#ff9800', '#f44336'];
+            const color = log.userName ? colors[log.userName.length % colors.length] : '#757575';
+
+            return {
+                id: `LOG${log.id.toString().padStart(3, '0')}`,
+                user: log.userName || 'System',
+                initials: initials,
+                color: color,
+                action: log.action,
+                module: log.category || 'General',
+                ip: log.ipAddress || '0.0.0.0',
+                dateTime: log.createdAt ? new Date(log.createdAt).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : 'N/A',
+                status: 'success' // Defaulting to success as these are recorded logs
+            };
+        });
+
         return {
             users: formattedUsers,
             roles: rolesData,
-            logs: accessLogsData,
+            logs: formattedLogs,
             stats: {
                 totalUsers: totalUsersCount.value,
                 activeUsers: activeUsersCount.value,

@@ -1151,6 +1151,9 @@ export const userTypeEntity = pgTable("user_type_entity", {
 	referralRewardPoints: integer("referral_reward_points").default(0),
 	refereeRewardPoints: integer("referee_reward_points").default(0),
 	maxReferrals: integer("max_referrals").default(10),
+	referralCodePrefix: text("referral_code_prefix"),
+	referralValidityDays: integer("referral_validity_days"),
+	referralSuccessMessage: text("referral_success_message"),
 	allowedRedemptionChannels: jsonb("allowed_redemption_channels").default([]),
 }, (table) => [
 	foreignKey({
