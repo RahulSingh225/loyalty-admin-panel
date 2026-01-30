@@ -14,7 +14,7 @@
     "db-sync": "npx tsx src/db/sync-database.ts",
     "docker:build": "docker build -t spacempact/sturlite-admin-panel:uat .",
     "docker:push": "docker push spacempact/sturlite-admin-panel:uat",
-    "docker:run": "docker run -d -p 3000:3000 --name sturlite-admin spacempact/sturlite-admin-panel:uat"
+    "docker:run": "docker run -d  -p 3001:3001  --name sturlite-admin  --env-file env/.admin.env --network sturlite-net  spacempact/sturlite-admin:uat"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.699.0",
