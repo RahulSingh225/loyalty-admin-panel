@@ -105,6 +105,11 @@ export class FileMiddleware {
     }
 
     async getFileSignedUrl(fileName: string, type: string, expiry: number = AWS_SIGNED_URL_EXPIRY): Promise<string> {
+        console.log('fileName', fileName)
+        console.log('type', type)
+        console.log('expiry', expiry)
+        console.log('bucketName', this.bucketName)
+
         const command = new GetObjectCommand({
             Bucket: this.bucketName,
             Key: getFileUrl(type) + fileName,
