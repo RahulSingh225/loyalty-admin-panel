@@ -121,13 +121,21 @@ export default function TicketsClient() {
 
     const updateMutation = useMutation({
         mutationFn: ({ id, data }: { id: number, data: any }) => updateTicketAction(id, data),
-        onSuccess: (res) => {
+        onSuccess: (res, variables) => {
             if (res.success) {
-                enqueueSnackbar('Ticket updated successfully', { variant: 'success' })
+                if (variables.data.statusId) {
+                    enqueueSnackbar('Ticket resolved successfully', { variant: 'success' })
+                } else if (variables.data.assigneeId) {
+                    enqueueSnackbar('Ticket assigned successfully', { variant: 'success' })
+                } else {
+                    enqueueSnackbar('Ticket updated successfully', { variant: 'success' })
+                }
                 setIsAssignModalOpen(false)
                 setIsResolveModalOpen(false)
                 queryClient.invalidateQueries({ queryKey: ['tickets'] })
-                queryClient.invalidateQueries({ queryKey: ['ticket-details', selectedTicketId] })
+                if (selectedTicketId) {
+                    queryClient.invalidateQueries({ queryKey: ['ticket-details', selectedTicketId] })
+                }
                 setResolutionNotes('')
                 setSelectedAssignee(null)
             } else {
@@ -186,46 +194,54 @@ export default function TicketsClient() {
     }
 
     const handleOpenAssign = (id: string) => {
-        setSelectedTicketId(id)
         const ticket = tickets.find((t: any) => t.id === id)
-        if (ticket && ticket.assigneeId) {
+        if (!ticket) return;
+
+        if (ticket.assigneeId || ticket.dbAssigneeId) {
             setSelectedAssignee({
-                id: ticket.assigneeId,
+                id: ticket.assigneeId || ticket.dbAssigneeId,
                 name: ticket.assignedTo,
                 type: ticket.assignedToType
             })
         } else {
             setSelectedAssignee(null)
         }
+        setSelectedTicketId(ticket.id)
         setIsAssignModalOpen(true)
     }
 
     const handleOpenResolve = (id: string) => {
-        setSelectedTicketId(id)
+        const ticket = tickets.find((t: any) => t.id === id)
+        setSelectedTicketId(ticket?.id || id)
+        setResolutionNotes('')
         setIsResolveModalOpen(true)
     }
 
     const handleAssignSubmit = () => {
         if (!selectedTicketId || !selectedAssignee) return
-        const numericId = parseInt(selectedTicketId.replace('TKT-', ''))
+        const ticket = tickets.find((t: any) => t.id === selectedTicketId)
+        if (!ticket) return;
+
         updateMutation.mutate({
-            id: numericId,
+            id: ticket.dbId || Number(selectedTicketId.replace('TKT-', '')),
             data: { assigneeId: selectedAssignee.id }
         })
     }
 
     const handleResolveSubmit = () => {
         if (!selectedTicketId) return
-        const numericId = parseInt(selectedTicketId.replace('TKT-', ''))
+        const ticket = tickets.find((t: any) => t.id === selectedTicketId)
+        if (!ticket) return;
+
         const resolvedStatus = ticketStatuses.find((s: any) =>
-            s.name.toLowerCase() === 'resolved' || s.name.toLowerCase() === 'closed'
+            s.name.toLowerCase().trim() === 'resolved' || s.name.toLowerCase().trim() === 'closed'
         )
         if (!resolvedStatus) {
             enqueueSnackbar('Resolved status not found in configuration', { variant: 'error' })
             return
         }
         updateMutation.mutate({
-            id: numericId,
+            id: ticket.dbId || Number(selectedTicketId.replace('TKT-', '')),
             data: {
                 statusId: resolvedStatus.id,
                 resolutionNotes: resolutionNotes,
@@ -387,9 +403,9 @@ export default function TicketsClient() {
                                             </Box>
                                         </Box>
                                         <Box display="flex" gap={1}>
-                                            <Button size="small" sx={{ minWidth: 0, px: 1 }} color="primary" onClick={() => handleView(ticket.id)}>View</Button>
-                                            <Button size="small" sx={{ minWidth: 0, px: 1 }} color="success" onClick={() => handleOpenAssign(ticket.id)}>Assign</Button>
-                                            <Button size="small" sx={{ minWidth: 0, px: 1 }} color="secondary" onClick={() => handleOpenResolve(ticket.id)}>Resolve</Button>
+                                            <Button size="small" sx={{ minWidth: 0, px: 1, textTransform: 'none' }} color="primary" onClick={(e) => { e.stopPropagation(); handleView(ticket.id); }}>View</Button>
+                                            <Button size="small" sx={{ minWidth: 0, px: 1, textTransform: 'none' }} color="success" onClick={(e) => { e.stopPropagation(); handleOpenAssign(ticket.id); }}>Assign</Button>
+                                            <Button size="small" sx={{ minWidth: 0, px: 1, textTransform: 'none' }} color="secondary" onClick={(e) => { e.stopPropagation(); handleOpenResolve(ticket.id); }}>Resolve</Button>
                                         </Box>
                                     </Box>
                                 </div>
@@ -618,6 +634,47 @@ export default function TicketsClient() {
                                             {ticketDetails.description}
                                         </Typography>
                                     </Box>
+
+                                    {(ticketDetails.imageUrl || ticketDetails.videoUrl) && (
+                                        <Box mt={3}>
+                                            <Typography variant="subtitle2" fontWeight="bold" mb={2}>Attachments</Typography>
+                                            <Box display="flex" gap={2} flexWrap="wrap">
+                                                {ticketDetails.imageUrl && (
+                                                    <Box
+                                                        component="a"
+                                                        href={ticketDetails.imageUrl}
+                                                        target="_blank"
+                                                        sx={{
+                                                            width: 200,
+                                                            height: 150,
+                                                            borderRadius: '12px',
+                                                            overflow: 'hidden',
+                                                            border: '1px solid #eef2f6',
+                                                            display: 'block',
+                                                            "&:hover": { opacity: 0.8 }
+                                                        }}
+                                                    >
+                                                        <img src={ticketDetails.imageUrl} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    </Box>
+                                                )}
+                                                {ticketDetails.videoUrl && (
+                                                    <Box
+                                                        sx={{
+                                                            width: '100%',
+                                                            maxWidth: 400,
+                                                            height: 250,
+                                                            borderRadius: '12px',
+                                                            overflow: 'hidden',
+                                                            border: '1px solid #eef2f6',
+                                                            bgcolor: 'black'
+                                                        }}
+                                                    >
+                                                        <video src={ticketDetails.videoUrl} style={{ width: '100%', height: '100%' }} controls />
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        </Box>
+                                    )}
                                 </Box>
                                 {ticketDetails.resolutionNotes && (
                                     <Box mt={4}>

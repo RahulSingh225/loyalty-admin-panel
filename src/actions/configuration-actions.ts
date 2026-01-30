@@ -22,6 +22,7 @@ export async function getConfigurationAction() {
                     const urlParts = creative.url.split('/');
                     const fileName = urlParts[urlParts.length - 1];
                     // We assume 'creatives' type for these
+                    console.log('fileName', fileName)
                     const signedUrl = await fileMiddleware.getFileSignedUrl(fileName, 'creatives');
                     return { ...creative, previewUrl: signedUrl };
                 } catch (e) {

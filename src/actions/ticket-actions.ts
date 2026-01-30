@@ -38,6 +38,8 @@ export async function getTicketsAction(filters?: TicketFilters) {
             assigneeId: assignee.id,
             assigneeName: assignee.name,
             assigneeTypeName: assigneeType.typeName,
+            imageUrl: tickets.imageUrl,
+            videoUrl: tickets.videoUrl,
         })
             .from(tickets)
             .leftJoin(ticketTypes, eq(tickets.typeId, ticketTypes.id))
@@ -94,6 +96,8 @@ export async function getTicketsAction(filters?: TicketFilters) {
             assigneeId: t.assigneeId,
             assignedTo: t.assigneeName || 'Unassigned',
             assignedToType: t.assigneeTypeName || 'N/A',
+            imageUrl: t.imageUrl,
+            videoUrl: t.videoUrl,
             createdAt: t.createdAt,
             lastUpdated: t.updatedAt
         }));
@@ -264,6 +268,8 @@ export async function getTicketDetailsAction(ticketId: string) {
             resolutionNotes: tickets.resolutionNotes,
             resolvedAt: tickets.resolvedAt,
             attachments: tickets.attachments,
+            imageUrl: tickets.imageUrl,
+            videoUrl: tickets.videoUrl,
         })
             .from(tickets)
             .leftJoin(ticketTypes, eq(tickets.typeId, ticketTypes.id))
