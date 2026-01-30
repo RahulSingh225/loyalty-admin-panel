@@ -197,9 +197,9 @@ export default function TicketsClient() {
         const ticket = tickets.find((t: any) => t.id === id)
         if (!ticket) return;
 
-        if (ticket.assigneeId || ticket.dbAssigneeId) {
+        if (ticket.assigneeId) {
             setSelectedAssignee({
-                id: ticket.assigneeId || ticket.dbAssigneeId,
+                id: ticket.assigneeId,
                 name: ticket.assignedTo,
                 type: ticket.assignedToType
             })
