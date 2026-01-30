@@ -9,7 +9,7 @@ export class RabbitMQConnector extends BaseMQConnector {
 
     private async ensure() {
         if (this.channel && this.conn) return;
-        const url = process.env.RABBITMQ_URL || "amqp://localhost";
+        const url = `amqp://${process.env.BROKER_USERNAME}:${process.env.BROKER_PASSWORD}@${process.env.BROKER_IP}` || "amqp://localhost";
         this.conn = await amqp.connect(url);
         this.channel = await this.conn.createChannel();
 

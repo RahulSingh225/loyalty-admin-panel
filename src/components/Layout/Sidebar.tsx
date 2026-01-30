@@ -49,25 +49,25 @@ interface NavigationItem {
 
 const menuItems: NavigationItem[] = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-  {
-    text: 'Masters & Config',
-    icon: <Settings />,
-    path: '/masters-config',
+  // {
+  //   text: 'Masters & Config',
+  //   icon: <Settings />,
+  //   path: '/masters-config',
 
-  },
+  // },
   //{ text: 'Schemes & Campaigns', icon: <Campaign />, path: '/schemes-campaigns' },
   { text: 'QR Management', icon: <QrCode />, path: '/qr-management' },
-  { text: 'Communication', icon: <Announcement />, path: '/communication' },
-  { text: 'Finance & Compliance', icon: <AccountBalance />, path: '/finance-compliance' },
+  //{ text: 'Communication', icon: <Announcement />, path: '/communication' },
+  //{ text: 'Finance & Compliance', icon: <AccountBalance />, path: '/finance-compliance' },
   //{ text: 'Fraud Detection', icon: <Security />, path: '/fraud-detection' },
-  { text: 'MIS & Analytics', icon: <Assessment />, path: '/mis-analytics' },
-  { text: 'Role Management', icon: <AdminPanelSettings />, path: '/role-management' },
+  //{ text: 'MIS & Analytics', icon: <Assessment />, path: '/mis-analytics' },
+  //{ text: 'Role Management', icon: <AdminPanelSettings />, path: '/role-management' },
   //{ text: 'Integrations', icon: <IntegrationInstructions />, path: '/integrations' },
   //{ text: 'Reports', icon: <Report />, path: '/reports' },
-  { text: 'Process', icon: <Build />, path: '/process' },
-  { text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
-  { text: 'Members', icon: <Group />, path: '/members' },
-  { text: 'Configuration', icon: <Tune />, path: '/configuration' }
+  //{ text: 'Process', icon: <Build />, path: '/process' },
+  //{ text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
+  //{ text: 'Members', icon: <Group />, path: '/members' },
+  //{ text: 'Configuration', icon: <Tune />, path: '/configuration' }
 ]
 
 interface SidebarProps {
