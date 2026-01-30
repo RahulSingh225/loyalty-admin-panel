@@ -92,6 +92,24 @@ class QrService {
             };
         }
     }
+
+    async toggleBatchStatus(batchId: number, isActive: boolean) {
+        try {
+            await inventoryBatchRepository.updateBatchStatus(batchId, isActive);
+            return {
+                success: true,
+                message: `Batch status updated to ${isActive ? 'Active' : 'Inactive'}`,
+                code: 200
+            };
+        } catch (error: any) {
+            console.log(error);
+            return {
+                success: false,
+                message: error.message || 'Failed to update batch status',
+                code: 500
+            };
+        }
+    }
 }
 
 export const qrService = new QrService();
