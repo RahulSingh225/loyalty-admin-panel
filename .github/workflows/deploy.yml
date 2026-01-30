@@ -28,9 +28,9 @@ jobs:
           context: .
           push: true
           # Replace 'my-nextjs-app' with your actual repo name
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sturlite-admin:uat
+          tags: spacempact/sturlite-admin:uat
           # Caching helps speed up subsequent builds significantly
-          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/sturlite-admin:uat
+          cache-from: type=registry,ref=spacempact/sturlite-admin:uat
           cache-to: type=inline
 
   trigger-deploy:
