@@ -1,0 +1,16 @@
+name: Build Check
+on:
+  pull_request:
+    branches: [ cicd-uat ] # The target branches you want to protect
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
